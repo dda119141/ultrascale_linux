@@ -1,0 +1,54 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  CROSS_COMPILE: "aarch64-linux-gnu-"
+  ARCH: "arm"
+  DEVICE_TREE: "zynqmp-zcu102-rev1.0"
+  OUT_DIR: "generated/src"
+  DIST_DIR: "dist"
+
+tasks:
+   get_uboot:
+     desc: "get uboot"
+     aliases: [gub]
+     vars:
+       GIT_VERSION: "b81542a91fb0012afea6dcfde9af25079df26865"
+     status:
+       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+     cmds:
+      - git clone https://github.com/Xilinx/u-boot-xlnx.git --depth 1 -b xilinx-v2022.2 {{.OUT_DIR}}
+
+   clean_uboot:
+     desc: "clean uboot source"
+     aliases: [cub]
+     dir: "{{.OUT_DIR}}"
+     env:
+       ARCH: "{{.ARCH}}"
+       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+     cmds:
+       - make ARCH={{.ARCH}} CROSS_COMPILE={{.CROSS_COMPILE}} O={{.DIST_DIR}} distclean
+
+   build_uboot:
+     desc: "build linux uboot"
+     aliases: [bub]
+     dir: "{{.OUT_DIR}}"
+     env:
+       ARCH: "{{.ARCH}}"
+       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+     cmds:
+       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
+       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.CROSS_COMPILE}}
+
+   clean_build_uboot:
+     desc: "clean build linux uboot"
+     aliases: [cbub]
+     cmds:
+       - task: get_uboot
+       - task: clean_uboot
+       - task: build_uboot
+
+ 
+
+

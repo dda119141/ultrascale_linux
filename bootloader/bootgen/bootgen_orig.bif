@@ -1,0 +1,9 @@
+the_ROM_image:
+{
+	 [bootloader,  destination_cpu=a53-0] /home/mog1lr/projects/xilinx/bootloader/coreboot/fsboot_a53_zc102.elf
+	 [destination_cpu=pmu] /home/mog1lr/yocto/ulrr/generated/tmp/work/zynqmp_generic-xilinx-linux/xilinx-bootbin/1.0-r0/recipe-sysroot/boot/pmufw.elf
+	 [destination_device=pl] /home/mog1lr/yocto/ulrr/generated/tmp/deploy/images/zynqmp-generic/download-zynqmp-generic.bit
+	 [destination_cpu=a53-0, exception_level=el-3, trustzone] /home/mog1lr/yocto/ulrr/generated/tmp/work/zynqmp_generic-xilinx-linux/xilinx-bootbin/1.0-r0/recipe-sysroot/boot/arm-trusted-firmware.elf
+	 [destination_cpu=a53-0, load=0x100000] /home/mog1lr/yocto/ulrr/generated/tmp/work/zynqmp_generic-xilinx-linux/xilinx-bootbin/1.0-r0/recipe-sysroot/boot/devicetree/system-top.dtb
+	 [destination_cpu=a53-0, exception_level=el-2] /home/mog1lr/yocto/ulrr/generated/tmp/work/zynqmp_generic-xilinx-linux/xilinx-bootbin/1.0-r0/recipe-sysroot/boot/u-boot.elf
+}

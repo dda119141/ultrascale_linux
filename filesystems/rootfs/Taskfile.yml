@@ -1,0 +1,114 @@
+# https://taskfile.dev
+
+version: '3'
+vars:
+  rootfs_out: generated/rootfs
+  rootfs_name: generated/rootfs/rootfs.ext3
+  rootfs_folder: generated/rootfs/src
+  #rootfs_folder: /mnt/aarch64
+
+tasks:
+
+  umount_rootfs_if_mounted:
+    desc: "umount rootfs if mounted"
+    internal: true
+    cmds:
+      - mount | grep "{{.rootfs_folder}}" && sudo umount "{{.rootfs_folder}}" || echo "nothing to do - continue"
+
+
+  prepare_rootfs_ext3:
+    desc: "prepare rootfs ext3 folder"
+    aliases: [pre]
+    cmds:
+      - task: umount_rootfs_if_mounted
+      - test -d {{.rootfs_out}} && rm -rf {{.rootfs_out}}/* || mkdir -p {{.rootfs_out}} 
+      - dd if=/dev/zero of={{.rootfs_name}} bs=400M count=1
+      - mkfs.ext3 {{.rootfs_name}}
+      - test -d {{.rootfs_folder}} && sudo rm -rf {{.rootfs_folder}}/* || sudo mkdir -p {{.rootfs_folder}} 
+      - sudo mount -o loop {{.rootfs_name}} {{.rootfs_folder}}
+
+
+  install_systemd_to_rootfs:
+    dir: "{{.rootfs_folder}}"
+    desc: "install systemd"
+    cmds:
+      - curl -O http://ftp.de.debian.org/debian/pool/main/g/glibc/libc6_2.31-13+deb11u6_arm64.deb
+      - dpkg-deb -x libc6_2.31-13+deb11u6_arm64.deb .
+      - curl -O http://ftp.de.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.2.5-2.1~deb11u1_arm64.deb
+      - dpkg-deb -x liblzma5_5.2.5-2.1~deb11u1_arm64.deb .
+      - curl -O http://ftp.de.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.3-2_arm64.deb
+      - dpkg-deb -x liblz4-1_1.9.3-2_arm64.deb .
+      - curl -O http://ftp.de.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.4.8+dfsg-2.1_arm64.deb
+      - dpkg-deb -x libzstd1_1.4.8+dfsg-2.1_arm64.deb .
+      - curl -Lo libgcrypt.deb http://ftp.de.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.8.7-6_arm64.deb
+      - dpkg-deb -x libgcrypt.deb .
+      - curl -Lo systemd.deb http://ftp.de.debian.org/debian/pool/main/s/systemd/libsystemd0_247.3-7+deb11u2_arm64.deb
+      - dpkg-deb -x systemd.deb .
+      - rm -rf *.deb
+
+  debootstrap_broken:
+    desc: "debootstrap rootfs"
+    dir: "{{.rootfs_folder}}"
+    internal: true
+    cmds:
+      - dpkg -l qemu-user-static && echo "continue" || sudo apt install qemu-user-static
+      - dpkg -l debootstrap && echo "continue" || sudo apt install debootstrap
+      - |
+        sudo qemu-debootstrap --arch arm64  \
+        --include="apt-transport-https,curl" \
+        --exclude="debfoster" bullseye \
+        {{.TASKFILE_DIR}}/{{.rootfs_folder}} \
+        http://ftp.uk.debian.org/debian
+      - task: set_hostname_and_password
+
+
+  debootstrap:
+    desc: "debootstrap rootfs"
+    cmds:
+      - dpkg -l qemu-user-static && echo "continue" || sudo apt install qemu-user-static
+      - dpkg -l debootstrap && echo "continue" || sudo apt install debootstrap
+      - |
+        sudo qemu-debootstrap --arch arm64  \
+        bullseye \
+        {{.TASKFILE_DIR}}/{{.rootfs_folder}} \
+        http://ftp.uk.debian.org/debian
+      - task: set_hostname_and_password
+
+
+  set_hostname_and_password:
+    dir: "{{.rootfs_folder}}"
+    desc: "set hostname and password"
+    internal: true
+    cmds:
+      - echo 'radar' | sudo chroot . /bin/tee /etc/hostname
+      - echo "root:root" | sudo chroot . /usr/sbin/chpasswd
+
+
+  get_into_rootfs:
+    dir: "{{.rootfs_folder}}"
+    desc: "chroot to rootfs"
+    cmds:
+      - sudo apt install qemu-user-static
+      - sudo cp $(which qemu-aarch64-static) usr/bin/
+      - sudo chroot . usr/bin/qemu-aarch64-static bin/bash
+
+  assemble_rootfs:
+    aliases: [arf]
+    dir: "{{.rootfs_folder}}"
+    desc: "build rootfs folder"
+    cmds:
+      - pwd
+      - task: prepare_rootfs_ext3
+      - task: debootstrap
+        #- task: install_systemd_to_rootfs
+        #- task: get_into_rootfs
+ 
+  default:
+    aliases: [brf]
+    desc: "build rootfs image"
+    cmds:
+      - task: assemble_rootfs
+      - sudo umount {{.rootfs_folder}}
+
+ 
+  

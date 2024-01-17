@@ -1,0 +1,190 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  TOOLCHAIN_BMT: toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
+  YOCTO_DEPLOY_DIR: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/deploy/images/zcu102-zynqmp"
+
+includes:
+  ramfs: 
+    taskfile: ./filesystems/initramfs/Taskfile.yml
+    dir: ./filesystems/initramfs/
+  rootfs: 
+    taskfile: ./filesystems/rootfs/Taskfile.yml
+    dir: ./filesystems/rootfs/
+  kernel: 
+    taskfile: ./kernel/Taskfile.yml
+    dir: ./kernel
+  uboot: 
+    taskfile: ./bootloader/uboot/Taskfile.yml
+    dir: ./bootloader/uboot
+  firstbl: 
+    taskfile: ./bootloader/coreboot/Taskfile.yml
+    dir: ./bootloader/coreboot
+
+
+tasks:
+  get_bmt:
+    dir: toolchain
+    desc: "retrieve and install bare metal toolchain"
+    cmds:
+      - sudo apt install libncursesw5 libpython2.7
+      - curl -Lo gcc-arm-none-elf.tar.xz https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz
+      - tar xf gcc-arm-none-elf.tar.xz
+      - rm -rf gcc-arm-none-elf.tar.xz
+    status:
+      - test -d arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
+      - test -f arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf/12.2.rel1-x86_64-aarch64-none-elf-manifest.txt
+
+
+  export_bmt:
+    deps: [get_bmt]
+    desc: "export bare metal toolchain into the environment"
+    env:
+      PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
+      CROSS_COMPILE: "aarch64-none-elf-"
+    cmds:
+      - echo "{{.TOOLCHAIN_BMT}}"
+
+  build_flash_stripe_util:
+    aliases: [bfsu]
+    desc: "clone and build flash stripe utility"
+    cmds:
+      - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu-ug-examples
+      - cd qemu-ug-examples && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
+      - cd qemu-ug-examples/flash_stripe_utilities/ && gcc flash_stripe.c -o flash_strip_bw -DFLASH_STRIPE_BW
+    sources:
+      - qemu-ug-examples/flash_stripe_utilities/flash_strip.c
+    generates:
+      - qemu-ug-examples/flash_stripe_utilities/flash_strip_bw
+
+
+  build_qemu_qspi_drive:
+    dir: qemu
+    #deps: [build_flash_stripe_util, build_itb]
+    deps: [build_flash_stripe_util]
+    aliases: [bqqd]
+    desc: "build qspi persistent memory fo qemu (NOR) "
+    summary: |
+      build qspi persistent memory fo qemu (NOR)
+      zynq ultrascale only support 128 MB QSPI in dual parallel mode
+      so 2 virtual NOR memory devices need to be created, each of it
+    vars:
+      bin_name: qemu_qspi.bin
+      u-boot: "{{.YOCTO_DEPLOY_DIR}}/u-boot.elf"
+      kernel: "../kernel/Image.itb"
+      #initramfs: "../filesystems/initramfs.cpio.gz"
+      bootbin: "{{.ROOT_DIR}}/bootloader/boot.bin"
+      bootscr: "{{.ROOT_DIR}}/bootloader/boot.scr"
+      flash_stripe: "{{.ROOT_DIR}}/qemu-ug-examples/flash_stripe_utilities/flash_strip_bw"
+    cmds:
+      - task: build_bootbin
+      - dd if=/dev/zero of={{.bin_name}} bs=128M count=1
+      - dd if={{.bootbin}} of={{.bin_name}} bs=1 seek=0 conv=notrunc
+      - dd if={{.bootscr}} of={{.bin_name}} bs=1 seek=65536000 conv=notrunc #offset 0x3e80000
+      - dd if={{.kernel}} of={{.bin_name}} bs=1 seek=15990784 conv=notrunc #offset 0xF40000
+      - "{{.flash_stripe}} qemu_qspi.bin qemu_qspi_low.bin qemu_qspi_high.bin"
+
+  create_sd_drive:
+    dir: drives
+    desc: "create sd drive"
+    internal: true
+    vars:
+      sd_drive_bin_name: qemu_sd.img
+    cmds:
+      - sudo apt install nbd-client nbd-server
+      - sudo modprobe nbd #Load the necessary kernel modules
+      - sudo qemu-img create {{.sd_drive_bin_name}} 2G
+      - sudo qemu-nbd -f raw -c /dev/nbd0 {{.sd_drive_bin_name}} # connect image to network block device nbd
+        #- qemu-nbd {{.sd_drive_bin_name}} & # connect image to network block device nbd
+        #- sudo nbd-client localhost 1024 /dev/nbd0 #Connect to the disk
+
+  partition_sd_drive:
+    aliases: [psd]
+    dir: drives
+    deps: [create_sd_drive]
+    desc: "partition sd drive"
+    cmds:
+        #- sudo sfdisk -d /dev/nbd0 > sd_card.layout
+      - sudo sfdisk /dev/nbd0 < sd_card.layout
+        #      - sudo fdisk /dev/nbd0 # for manually partitionning
+      - sudo mkfs.vfat /dev/nbd0p1
+      - sudo mkfs.ext3 /dev/nbd0p2
+
+  disconnect_nbd:
+    desc: "Once the files are copied, disconnect the nbd connection"
+    internal: true
+    cmds:
+      - sudo qemu-nbd -d /dev/nbd0
+   
+ 
+  build_qemu_sd_drive:
+    aliases: [bqsd]
+    desc: "build qemu sd drive"
+    vars:
+      rootfs: "{{.TASKFILE_DIR}}/filesystems/rootfs/generated/rootfs/rootfs.ext3"
+    cmds:
+      - task: partition_sd_drive
+      - task: rootfs:default
+      - sudo dd if={{.rootfs}} of=/dev/nbd0p2 bs=512M count=1
+      - task: disconnect_nbd
+  
+  build_itb:
+    dir: kernel
+    aliases: [bitb]
+    desc: "build linux itb image"
+    vars:
+      #kernel: "{{.YOCTO_DEPLOY_DIR}}/Image"
+      kernel: "generated/src/arch/arm64/boot/Image"
+      dtb: "device-tree/zynqmp-zcu102-rev1.0.dtb"
+      initramfs: "{{.ROOT_DIR}}/filesystems/initramfs/generated/initramfs.cpio.gz"
+    sources:
+      - "{{.kernel}}"
+      - "{{.dtb}}"
+      - "{{.initramfs}}"
+    generates:
+      - "Image.itb"
+    cmds:
+     - dpkg -l u-boot-tools && echo "continue" || sudo apt install u-boot-tools #for mkimage
+     - task: kernel:bk
+     - task: ramfs:bir
+     - ln -sf {{.kernel}} Image
+     - ln -sf {{.dtb}} kernel.dtb
+     - ln -sf {{.initramfs}} initramfs.cpio.gz
+     - mkimage -f zcu102.its Image.itb
+
+  build_bootbin:
+    dir: bootloader
+    aliases: [bbb]
+    desc: "build boot.bin file for initial boot"
+    vars:
+      biffile: "bootgen/bootgen.bif"
+      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+    cmds:
+      - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
+
+  read_bootbin_header_table:
+    dir: bootloader
+    aliases: [rbbht]
+    desc: "read boot.bin header table"
+    vars:
+      biffile: "bootgen/bootgen.bif"
+      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+    cmds:
+      - "{{.bootgen}} -read boot.bin | more"
+
+
+  read_bootbin_header_table_orig:
+    dir: bootloader
+    aliases: [rbbhto]
+    desc: "read boot.bin header table"
+    vars:
+      biffile: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/bootgen.bif"
+      bootbin: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/BOOT.bin"
+      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+    cmds:
+      - "{{.bootgen}} -read {{.bootbin}} | more"
+
+
+
