@@ -33,6 +33,7 @@ tasks:
    build_uboot:
      desc: "build linux uboot"
      aliases: [bub]
+     deps: [gub]
      dir: "{{.OUT_DIR}}"
      env:
        ARCH: "{{.ARCH}}"
