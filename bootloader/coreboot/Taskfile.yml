@@ -16,6 +16,14 @@ tasks:
     cmds:
       - rm -rf build
 
+  get_bl:
+    desc: "get bootloader"
+    aliases: [gbl]
+    status:
+    cmds:
+      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b initial_development {{.OUT_DIR}}
+
+
   build_comp:
     dir: "{{.comp_dir}}"
     desc: "build component"
@@ -42,9 +50,10 @@ tasks:
     aliases: [bbl]
     desc: "build bootloader"
     cmds:
+      - dpkg -l ninja-build && echo "continue" || sudo apt install ninja-build
       - task: build_comp
         vars:
-          comp_dir: "."
+          comp_dir: "{{.OUT_DIR}}"
           CROSS_COMPILE: "aarch64-none-elf-"
           PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
           CROSS_DIR: "{{.TOOLCHAIN_BMT}}/bin"
@@ -55,7 +64,7 @@ tasks:
     cmds:
       - task: clean_comp
         vars:
-          comp_dir: "."
+          comp_dir: "{{.OUT_DIR}}"
           CROSS_COMPILE: "aarch64-none-elf-"
 
   debug_bl:
@@ -64,7 +73,7 @@ tasks:
     cmds:
       - task: debug_comp
         vars:
-          comp_dir: "."
+          comp_dir: "{{.OUT_DIR}}"
           CROSS_DIR: "{{.TOOLCHAIN_BMT}}/bin"
 
 
