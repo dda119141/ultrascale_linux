@@ -1,0 +1,24 @@
+From 704f5acf29e58c9993bb9261d73f18b563e4a93c Mon Sep 17 00:00:00 2001
+From: Maxime Moge <maxime.moge@de.bosch.com>
+Date: Fri, 8 Sep 2023 18:42:09 +0200
+Subject: [PATCH] Disable LOAD segment with RWX error
+
+---
+ Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Makefile b/Makefile
+index 73007b4..44112d2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -442,6 +442,7 @@ TF_LDFLAGS		+=	$(subst --,-Xlinker --,$(TF_LDFLAGS_$(ARCH)))
+ else
+ TF_LDFLAGS		+=	--fatal-warnings -O1
+ TF_LDFLAGS		+=	--gc-sections
++TF_LDFLAGS		+=	--no-warn-rwx-segment
+ # ld.lld doesn't recognize the errata flags,
+ # therefore don't add those in that case
+ ifeq ($(findstring ld.lld,$(notdir $(LD))),)
+-- 
+2.25.1
+

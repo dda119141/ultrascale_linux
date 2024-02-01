@@ -1,0 +1,83 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+   CROSS_COMPILE: "aarch64-none-elf-"
+   DEVICE_TREE: "zynqmp-zcu102-rev1.0"
+   OUT_DIR: "generated/src"
+   TOOLCHAIN_BMT: "{{.TASKFILE_DIR}}/../../toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
+
+
+tasks:
+  clean_comp:
+    dir: "{{.comp_dir}}"
+    desc: "clean component"
+    cmds:
+      - rm -rf build
+
+  get_bl:
+    desc: "get bootloader"
+    aliases: [gbl]
+    status:
+    cmds:
+      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b initial_development {{.OUT_DIR}}
+
+
+  build_comp:
+    dir: "{{.comp_dir}}"
+    deps: [gbl]
+    desc: "build component"
+    env:
+      PATH: "{{.PATH}}"
+    cmds:
+      #- cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "Ninja"
+      - cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCROSS_COMPILE={{.CROSS_DIR}}/{{.CROSS_COMPILE}} -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
+      - cmake --build build/
+    preconditions:
+      - sh: test -f {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc
+        msg: "Compiler {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc is not installed..."
+
+
+  debug_comp:
+    dir: "{{.comp_dir}}"
+    desc: "cross debug component"
+    vars:
+          CROSS_DEBUG: "{{.CROSS_DIR}}/aarch64-none-elf-gdb"
+          BINARY:
+            sh: realpath $(find {{.comp_dir}} -iname *.elf) 
+    
+    cmds:
+      - "{{.CROSS_DEBUG}} {{.BINARY}}"
+
+  build_bl:
+    aliases: [bbl]
+    desc: "build bootloader"
+    cmds:
+      - dpkg -l ninja-build >/dev/null && echo "continue" || sudo apt install ninja-build
+      - task: build_comp
+        vars:
+          comp_dir: "{{.OUT_DIR}}"
+          CROSS_COMPILE: "aarch64-none-elf-"
+          PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
+          CROSS_DIR: "{{.TOOLCHAIN_BMT}}/bin"
+
+  clean_bl:
+    aliases: [cbl]
+    desc: "clean bootloader"
+    cmds:
+      - task: clean_comp
+        vars:
+          comp_dir: "{{.OUT_DIR}}"
+          CROSS_COMPILE: "aarch64-none-elf-"
+
+  debug_bl:
+    aliases: [dbl]
+    desc: "debug bootloader"
+    cmds:
+      - task: debug_comp
+        vars:
+          comp_dir: "{{.OUT_DIR}}"
+          CROSS_DIR: "{{.TOOLCHAIN_BMT}}/bin"
+
+

@@ -1,0 +1,70 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  CROSS_COMPILE: "aarch64-linux-gnu-"
+  ARCH: "arm64"
+  OUT_DIR:
+    sh: echo "{{.TASKFILE_DIR}}/generated/src"
+
+tasks:
+   get_kernel:
+    desc: "get kernel"
+    aliases: [gk]
+    vars:
+      GIT_VERSION: "19984dd147fa7fbb7cb14b17400263ad0925c189"
+    status:
+      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+    cmds:
+      - git clone https://github.com/Xilinx/linux-xlnx.git --depth 1 -b xlnx_rebase_v5.15_LTS_2022.2 {{.OUT_DIR}}
+
+   clean_kernel:
+     desc: "clean build linux kernel"
+     dir: "{{.OUT_DIR}}"
+     deps: [get_kernel]
+     env:
+       ARCH: "{{.ARCH}}"
+       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+     cmds:
+       - sudo apt install build-essential libssl-dev flex bison bc #kernel build requires these packages
+       - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} clean
+
+   clean_build_kernel:
+     desc: "clean build linux kernel"
+     aliases: [cbk]
+     dir: "{{.OUT_DIR}}"
+     deps: [get_kernel]
+     env:
+       ARCH: "{{.ARCH}}"
+       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+     cmds:
+       - task: clean_kernel
+       - cp {{.TASKFILE_DIR}}/ulrr_defconfig {{.OUT_DIR}}/arch/{{.ARCH}}/configs/
+       - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} ulrr_defconfig
+       - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} CROSS_COMPILE={{.CROSS_COMPILE}}
+
+   build_kernel:
+     desc: "build linux kernel"
+     aliases: [bk]
+     dir: "{{.OUT_DIR}}"
+     deps: [get_kernel]
+     env:
+       ARCH: "{{.ARCH}}"
+       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+     cmds:
+       - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} -j 8 CROSS_COMPILE={{.CROSS_COMPILE}} Image modules
+
+
+   get_device_tree:
+     desc: "get device-tree"
+     aliases: [gdt]
+     vars:
+       GIT_VERSION: "19984dd147fa7fbb7cb14b17400263ad0925c189"
+     status:
+       - cat device_tree/.git/HEAD | grep {{.GIT_VERSION}}
+     cmds:
+       - git clone https://github.com/devicetree-org/devicetree-source.git --depth 1 -b xlnx_rebase_v5.15_LTS_2022.2 device_tree
+
+
+
