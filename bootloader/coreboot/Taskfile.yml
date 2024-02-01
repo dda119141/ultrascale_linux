@@ -29,11 +29,14 @@ tasks:
     desc: "build component"
     env:
       PATH: "{{.PATH}}"
-      CROSS_COMPILE: "{{.CROSS_DIR}}/{{.CROSS_COMPILE}}"
     cmds:
       #- cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "Ninja"
-      - cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
+      - cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCROSS_COMPILE={{.CROSS_DIR}}/{{.CROSS_COMPILE}} -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
       - cmake --build build/
+    preconditions:
+      - sh: test -f {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc
+        msg: "Compiler {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc is not installed..."
+
 
   debug_comp:
     dir: "{{.comp_dir}}"
@@ -50,7 +53,7 @@ tasks:
     aliases: [bbl]
     desc: "build bootloader"
     cmds:
-      - dpkg -l ninja-build && echo "continue" || sudo apt install ninja-build
+      - dpkg -l ninja-build >/dev/null && echo "continue" || sudo apt install ninja-build
       - task: build_comp
         vars:
           comp_dir: "{{.OUT_DIR}}"
