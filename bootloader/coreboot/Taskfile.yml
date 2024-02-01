@@ -26,6 +26,7 @@ tasks:
 
   build_comp:
     dir: "{{.comp_dir}}"
+    deps: [gbl]
     desc: "build component"
     env:
       PATH: "{{.PATH}}"
