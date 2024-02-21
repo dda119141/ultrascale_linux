@@ -1,0 +1,8 @@
+the_ROM_image:
+{
+	 [bootloader,  destination_cpu=a53-0] {BL_DIR}/coreboot/generated/src/build/fsboot_a53_zc102.elf
+	 [destination_cpu=pmu] pmu/bin/pmufw.elf
+	 [destination_cpu=a53-0, exception_level=el-3, trustzone] {BL_DIR}/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31/bl31.elf
+	 [destination_cpu=a53-0, load=0x100000] /home/mog1lr/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/recipe-sysroot/boot/devicetree/system-top.dtb
+	 [destination_cpu=a53-0, exception_level=el-2] {BL_DIR}/uboot/u-boot.elf
+}
