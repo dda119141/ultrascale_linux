@@ -1,0 +1,57 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+   BRANCH: "xlnx_rel_v2022.2"
+   OUT_DIR: "generated/src"
+
+
+tasks:
+  clean_comp:
+    dir: "{{.comp_dir}}"
+    silent: true
+    cmds:
+      - make clean
+
+  get_bl:
+    desc: "get bootgen"
+    aliases: [gbg]
+    status:
+      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.BRANCH}}
+    cmds:
+      - git clone https://github.com/Xilinx/bootgen.git --depth 1 -b {{.BRANCH}} {{.OUT_DIR}}
+
+
+  build_comp:
+    dir: "{{.comp_dir}}"
+    deps: [gbg]
+    silent: true
+    env:
+      PATH: "{{.PATH}}"
+    cmds:
+      - make
+        #- make -std=c++0x
+
+
+  build_bg:
+    aliases: [bbg]
+    desc: "build bootgen"
+    status:
+      - readelf -h {{.OUT_DIR}}/bootgen | grep "Advanced Micro Devices X86-64"
+    cmds:
+      - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install -f libssl-dev
+      - task: build_comp
+        vars:
+          comp_dir: "{{.OUT_DIR}}"
+
+  clean_bl:
+    aliases: [cbg]
+    desc: "clean bootgen"
+    cmds:
+      - task: clean_comp
+        vars:
+          comp_dir: "{{.OUT_DIR}}"
+
+
+

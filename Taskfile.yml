@@ -22,6 +22,9 @@ includes:
   firstbl: 
     taskfile: ./bootloader/coreboot/Taskfile.yml
     dir: ./bootloader/coreboot
+  bootgen: 
+    taskfile: ./bootloader/bootgen/Taskfile.yml
+    dir: ./bootloader/bootgen
 
 
 tasks:
@@ -158,9 +161,11 @@ tasks:
     aliases: [bbb]
     desc: "build boot.bin file for initial boot"
     vars:
-      biffile: "bootgen/bootgen.bif"
-      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+      bootgen_dir: "bootgen"
+      biffile: "{{.bootgen_dir}}/bootgen.bif"
+      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
     cmds:
+      - task: bootgen:build_bg
       - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
 
   read_bootbin_header_table:
@@ -168,8 +173,9 @@ tasks:
     aliases: [rbbht]
     desc: "read boot.bin header table"
     vars:
-      biffile: "bootgen/bootgen.bif"
-      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+      bootgen_dir: "bootgen"
+      biffile: "{{.bootgen_dir}}/bootgen.bif"
+      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
     cmds:
       - "{{.bootgen}} -read boot.bin | more"
 
