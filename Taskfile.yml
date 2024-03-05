@@ -5,6 +5,8 @@ version: '3'
 vars:
   TOOLCHAIN_BMT: toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
   YOCTO_DEPLOY_DIR: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/deploy/images/zcu102-zynqmp"
+  TOP_DIR:
+    sh: echo $(pwd)
 
 includes:
   ramfs: 
@@ -16,15 +18,9 @@ includes:
   kernel: 
     taskfile: ./kernel/Taskfile.yml
     dir: ./kernel
-  uboot: 
-    taskfile: ./bootloader/uboot/Taskfile.yml
-    dir: ./bootloader/uboot
-  firstbl: 
-    taskfile: ./bootloader/coreboot/Taskfile.yml
-    dir: ./bootloader/coreboot
-  bootgen: 
-    taskfile: ./bootloader/bootgen/Taskfile.yml
-    dir: ./bootloader/bootgen
+  earlyboot: 
+    taskfile: ./bootloader/Taskfile.yml
+    dir: ./bootloader
 
 
 tasks:
@@ -155,41 +151,5 @@ tasks:
      - ln -sf {{.dtb}} kernel.dtb
      - ln -sf {{.initramfs}} initramfs.cpio.gz
      - mkimage -f zcu102.its Image.itb
-
-  build_bootbin:
-    dir: bootloader
-    aliases: [bbb]
-    desc: "build boot.bin file for initial boot"
-    vars:
-      bootgen_dir: "bootgen"
-      biffile: "{{.bootgen_dir}}/bootgen.bif"
-      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
-    cmds:
-      - task: bootgen:build_bg
-      - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
-
-  read_bootbin_header_table:
-    dir: bootloader
-    aliases: [rbbht]
-    desc: "read boot.bin header table"
-    vars:
-      bootgen_dir: "bootgen"
-      biffile: "{{.bootgen_dir}}/bootgen.bif"
-      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
-    cmds:
-      - "{{.bootgen}} -read boot.bin | more"
-
-
-  read_bootbin_header_table_orig:
-    dir: bootloader
-    aliases: [rbbhto]
-    desc: "read boot.bin header table"
-    vars:
-      biffile: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/bootgen.bif"
-      bootbin: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/BOOT.bin"
-      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
-    cmds:
-      - "{{.bootgen}} -read {{.bootbin}} | more"
-
 
 

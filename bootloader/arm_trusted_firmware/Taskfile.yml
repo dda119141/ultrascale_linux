@@ -46,6 +46,8 @@ tasks:
        PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
+       - task: get_atf
+       - task: atf_apply_patch
        - PATH="{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 
 
    clean_build_atf:

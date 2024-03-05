@@ -1,0 +1,67 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  TOP_DIR:
+    sh: echo $(pwd)
+
+includes:
+  bootgen: 
+    taskfile: ./bootgen/Taskfile.yml
+    dir: ./bootgen
+  uboot: 
+    taskfile: ./uboot/Taskfile.yml
+    dir: ./uboot
+  firstbl: 
+    taskfile: ./coreboot/Taskfile.yml
+    dir: ./coreboot
+  atf: 
+    taskfile: ./arm_trusted_firmware/Taskfile.yml
+    dir: ./arm_trusted_firmware
+ 
+tasks:
+  clean_comp:
+    dir: "{{.comp_dir}}"
+    desc: "clean component"
+    cmds:
+      - rm -rf build
+
+  build_bootbin:
+    aliases: [bbb]
+    desc: "build boot.bin file for initial boot"
+    vars:
+      bootgen_dir: "bootgen"
+      biffile_template: "{{.bootgen_dir}}/bootgen.in.bif"
+      biffile: "{{.bootgen_dir}}/bootgen.bif"
+      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
+    cmds:
+      - task: bootgen:build_bg
+      - task: atf:build_atf
+      - sed 's:{BL_DIR}:${{.TOP_DIR}}:' {{.biffile_template}} > {{.biffile}}  
+      - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
+
+  read_bootbin_header_table:
+    aliases: [rbbht]
+    desc: "read boot.bin header table"
+    vars:
+      bootgen_dir: "bootgen"
+      biffile: "{{.bootgen_dir}}/bootgen.bif"
+      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
+    cmds:
+      - "{{.bootgen}} -read boot.bin | more"
+
+
+  read_bootbin_header_table_orig:
+    aliases: [rbbhto]
+    desc: "read boot.bin header table"
+    vars:
+      biffile: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/bootgen.bif"
+      bootbin: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/BOOT.bin"
+      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
+    cmds:
+      - "{{.bootgen}} -read {{.bootbin}} | more"
+
+
+
+
