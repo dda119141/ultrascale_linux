@@ -3,10 +3,8 @@
 version: '3'
 
 vars:
-  TOOLCHAIN_BMT: toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
+  TOOLCHAIN_BMT: "{{.ROOT_DIR}}/toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
   YOCTO_DEPLOY_DIR: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/deploy/images/zcu102-zynqmp"
-  TOP_DIR:
-    sh: echo $(pwd)
 
 includes:
   ramfs: 
@@ -21,6 +19,8 @@ includes:
   earlyboot: 
     taskfile: ./bootloader/Taskfile.yml
     dir: ./bootloader
+    vars:
+      TOOLCHAIN_DIR: "{{.TOOLCHAIN_BMT}}"
 
 
 tasks:

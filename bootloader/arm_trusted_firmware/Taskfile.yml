@@ -7,14 +7,14 @@ vars:
    DEVICE_TREE: "zynqmp-zcu102-rev1.0"
    OUT_DIR: "generated/src"
    DIST_DIR: "dist"
-   TOOLCHAIN_BMT: "{{.TASKFILE_DIR}}/../../toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
+   TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
 
 tasks:
    get_atf:
      desc: "get atf"
      aliases: [gub]
      vars:
-       GIT_VERSION: "8f3b82c3005f818d82b2d70b9a4f485bfaf26737"
+       GIT_VERSION: "bc531ba7e5a365c307c9a4ffdb155641fd7065f8"
      status:
        - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
      cmds:
@@ -25,7 +25,7 @@ tasks:
      aliases: [appt]
      dir: "{{.OUT_DIR}}"
      cmds:
-       - git am {{.TASKFILE_DIR}}/0001-Disable-LOAD-segment-with-RWX-error.patch
+       - git am {{.PATCH_DIR}}/0001-Disable-LOAD-segment-with-RWX-error.patch
      status:
        - git log | grep "Disable LOAD segment with RWX error"
  
@@ -36,19 +36,19 @@ tasks:
      env:
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
-       - PATH="{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}" make -j8 CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
+       - PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j8 CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
 
    build_atf:
      desc: "build atf"
      aliases: [bub]
      dir: "{{.OUT_DIR}}"
      env:
-       PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
+       PATH: "{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
        - task: get_atf
        - task: atf_apply_patch
-       - PATH="{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 
+       - PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 
 
    clean_build_atf:
      desc: "clean build atf"

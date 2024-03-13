@@ -1,8 +1,9 @@
-From 704f5acf29e58c9993bb9261d73f18b563e4a93c Mon Sep 17 00:00:00 2001
-From: Maxime Moge <maxime.moge@de.bosch.com>
-Date: Fri, 8 Sep 2023 18:42:09 +0200
+From bb4d7889b787ef0b41d35d60682c38ec51bd8f81 Mon Sep 17 00:00:00 2001
+From: Maxime Moge <dda119141@gmail.com>
+Date: Wed, 13 Mar 2024 13:10:35 +0000
 Subject: [PATCH] Disable LOAD segment with RWX error
 
+  Author:    Maxime Moge <dda119141@gmail.com>
 ---
  Makefile | 1 +
  1 file changed, 1 insertion(+)
