@@ -44,7 +44,6 @@ tasks:
           CROSS_DEBUG: "{{.CROSS_DIR}}/aarch64-none-elf-gdb"
           BINARY:
             sh: realpath $(find {{.comp_dir}} -iname *.elf) 
-    
     cmds:
       - "{{.CROSS_DEBUG}} {{.BINARY}}"
 
