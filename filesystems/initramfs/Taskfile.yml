@@ -4,7 +4,6 @@ version: '3'
 
 vars:
   GREETING: Hello, World!
-  TOOLCHAIN_BMT: toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
   YOCTO_DEPLOY_DIR: "{{.HOME}}/yocto/ulrr/generated/tmp/deploy/images/zcu102-zynqmp"
 
 tasks:

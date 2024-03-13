@@ -19,6 +19,9 @@ includes:
   atf: 
     taskfile: ./arm_trusted_firmware/Taskfile.yml
     dir: ./arm_trusted_firmware
+    vars:
+        PATCH_DIR: "{{.TASKFILE_DIR}}/arm_trusted_firmware"
+        TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
  
 tasks:
   clean_comp:
