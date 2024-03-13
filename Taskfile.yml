@@ -4,7 +4,8 @@ version: '3'
 
 vars:
   TOOLCHAIN_BMT: "{{.ROOT_DIR}}/toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
-  YOCTO_DEPLOY_DIR: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/deploy/images/zcu102-zynqmp"
+  TOP_DIR:
+    sh: echo $(pwd)
 
 includes:
   ramfs: 
@@ -21,6 +22,9 @@ includes:
     dir: ./bootloader
     vars:
       TOOLCHAIN_DIR: "{{.TOOLCHAIN_BMT}}"
+      BASE_DIR: "{{.ROOT_DIR}}"
+      HW_DESC_DIR: "{{.TOP_DIR}}/system_hw_description"
+      DIR_BOOTLOADER: "{{.TOP_DIR}}/bootloader"
 
 
 tasks:
@@ -70,7 +74,6 @@ tasks:
       so 2 virtual NOR memory devices need to be created, each of it
     vars:
       bin_name: qemu_qspi.bin
-      u-boot: "{{.YOCTO_DEPLOY_DIR}}/u-boot.elf"
       kernel: "../kernel/Image.itb"
       #initramfs: "../filesystems/initramfs.cpio.gz"
       bootbin: "{{.ROOT_DIR}}/bootloader/boot.bin"
@@ -133,7 +136,6 @@ tasks:
     aliases: [bitb]
     desc: "build linux itb image"
     vars:
-      #kernel: "{{.YOCTO_DEPLOY_DIR}}/Image"
       kernel: "generated/src/arch/arm64/boot/Image"
       dtb: "device-tree/zynqmp-zcu102-rev1.0.dtb"
       initramfs: "{{.ROOT_DIR}}/filesystems/initramfs/generated/initramfs.cpio.gz"

@@ -3,7 +3,7 @@
 version: '3'
 
 vars:
-  CROSS_COMPILE: "aarch64-linux-gnu-"
+  LOC_CROSS_COMPILE: "aarch64-linux-gnu-"
   ARCH: "arm"
   DEVICE_TREE: "zynqmp-zcu102-rev1.0"
   OUT_DIR: "generated/src"
@@ -26,9 +26,9 @@ tasks:
      dir: "{{.OUT_DIR}}"
      env:
        ARCH: "{{.ARCH}}"
-       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+       CROSS_COMPILE: "{{.LOC_CROSS_COMPILE}}"
      cmds:
-       - make ARCH={{.ARCH}} CROSS_COMPILE={{.CROSS_COMPILE}} O={{.DIST_DIR}} distclean
+       - make ARCH={{.ARCH}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} O={{.DIST_DIR}} distclean
 
    build_uboot:
      desc: "build linux uboot"
@@ -37,10 +37,13 @@ tasks:
      dir: "{{.OUT_DIR}}"
      env:
        ARCH: "{{.ARCH}}"
-       CROSS_COMPILE: "{{.CROSS_COMPILE}}"
+       CROSS_COMPILE: "{{.LOC_CROSS_COMPILE}}"
      cmds:
-       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
-       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.CROSS_COMPILE}}
+       - dpkg -l gcc-aarch64-linux-gnu >/dev/null && echo "continue" || apt install -y gcc-aarch64-linux-gnu
+       - dpkg -l device-tree-compiler >/dev/null && echo "continue" || apt install -y device-tree-compiler
+
+       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
+       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
 
    clean_build_uboot:
      desc: "clean build linux uboot"
