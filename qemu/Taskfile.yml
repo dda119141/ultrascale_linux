@@ -1,0 +1,58 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+   OUT_DIR: "generated/src"
+   NPROC:
+     sh:
+       echo $(nproc)
+
+tasks:
+  clean_qemu:
+    desc: "clean qemu"
+    deps: [get_qemu]
+    cmds:
+      - cd {{.OUT_DIR}} && make clean
+
+  get_qemu:
+    desc: "get qemu"
+    vars:
+      GIT_VERSION: "xlnx_rel_v2022.2"
+    status:
+      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+    cmds:
+      - git clone https://github.com/Xilinx/qemu.git --depth 1 -b xlnx_rel_v2022.2 {{.OUT_DIR}}
+
+  configure_qemu:
+    desc: "configure qemu"
+    deps: [get_qemu]
+    status:
+      - readelf -h {{.OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
+    cmds:
+      - dpkg -l | grep ninja-build >/dev/null && echo "continue" || (apt update && apt install -y ninja-build)
+      - dpkg -l | grep pkg-config >/dev/null && echo "continue" || (apt update && apt install -y pkg-config)
+      - dpkg -l | grep libglib2.0-dev >/dev/null && echo "continue" || (apt update && apt install -y libglib2.0-dev)
+      - dpkg -l | grep libpixman-1-dev >/dev/null && echo "continue" || (apt update && apt install -y libpixman-1-dev)
+      - |
+        cd {{.OUT_DIR}} && ./configure --target-list=aarch64-softmmu,microblazeel-softmmu \
+        --enable-fdt \
+        --disable-kvm \
+        --disable-xen
+ 
+  build_qemu:
+    desc: "build qemu"
+    deps: [configure_qemu]
+    cmds:
+      - cd {{.OUT_DIR}} && make -j{{.NPROC}}
+    status:
+      - readelf -h {{.OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
+
+
+  clean_build_qemu:
+    desc: "clean build qemu"
+    cmds:
+      - task: clean_qemu
+      - task: build_qemu
+
+
