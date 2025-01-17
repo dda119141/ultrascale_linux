@@ -16,7 +16,7 @@ includes:
     taskfile: ./arm_trusted_firmware/Taskfile.yml
     dir: ./arm_trusted_firmware
     vars:
-        PATCH_DIR: "{{.TASKFILE_DIR}}/arm_trusted_firmware"
+        PATCH_DIR: "{{.TASKFILE_DIR}}/patches"
         TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
  
 tasks:

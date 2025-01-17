@@ -3,11 +3,14 @@
 version: '3'
 
 vars:
-  TOOLCHAIN_BMT: "{{.ROOT_DIR}}/toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
+  TOOLCHAIN_BMT: 
+    sh: echo "{{.USER_WORKING_DIR}}/toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
   TOP_DIR:
     sh: echo $(pwd)
 
 includes:
+  toolchain:
+    taskfile: ./toolchain/Taskfile.yml
   ramfs: 
     taskfile: ./filesystems/initramfs/Taskfile.yml
     dir: ./filesystems/initramfs/
@@ -28,27 +31,6 @@ includes:
 
 
 tasks:
-  get_bmt:
-    dir: toolchain
-    desc: "retrieve and install bare metal toolchain"
-    cmds:
-      - curl -Lo gcc-arm-none-elf.tar.xz https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz
-      - tar xf gcc-arm-none-elf.tar.xz
-      - rm -rf gcc-arm-none-elf.tar.xz
-    status:
-      - test -d arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf
-      - test -f arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf/12.2.rel1-x86_64-aarch64-none-elf-manifest.txt
-
-
-  export_bmt:
-    deps: [get_bmt]
-    desc: "export bare metal toolchain into the environment"
-    env:
-      PATH: "{{.TOOLCHAIN_BMT}}/bin:{{.PATH}}"
-      CROSS_COMPILE: "aarch64-none-elf-"
-    cmds:
-      - echo "{{.TOOLCHAIN_BMT}}"
-
   build_flash_stripe_util:
     aliases: [bfsu]
     desc: "clone and build flash stripe utility"
@@ -82,7 +64,8 @@ tasks:
       bootscr: "{{.ROOT_DIR}}/bootloader/boot.scr"
       flash_stripe: "{{.ROOT_DIR}}/qemu-ug-examples/flash_stripe_utilities/flash_strip_bw"
     cmds:
-      - task: build_bootbin
+      - task: toolchain:export_bmt
+      - task: earlyboot:build_bootbin
       - dd if=/dev/zero of={{.bin_name}} bs=128M count=1
       - dd if={{.bootbin}} of={{.bin_name}} bs=1 seek=0 conv=notrunc
       - dd if={{.bootscr}} of={{.bin_name}} bs=1 seek=65536000 conv=notrunc #offset 0x3e80000

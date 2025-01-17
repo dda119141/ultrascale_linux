@@ -1,8 +1,8 @@
 the_ROM_image:
 {
-	 [bootloader,  destination_cpu=a53-0] /zc102/ultrascale_linux/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf
-	 [destination_cpu=pmu] /zc102/ultrascale_linux/bootloader/pmu/bin/pmufw.elf
-	 [destination_cpu=a53-0, exception_level=el-3, trustzone] /zc102/ultrascale_linux/bootloader/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31/bl31.elf
-	 [destination_cpu=a53-0, load=0x100000] /zc102/ultrascale_linux/system_hw_description/system-top.dtb
-	 [destination_cpu=a53-0, exception_level=el-2] /zc102/ultrascale_linux/bootloader/uboot/generated/src/dist/u-boot.elf
+	 [bootloader,  destination_cpu=a53-0] /home/moge/myprojects/ultrascale_linux/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf
+	 [destination_cpu=pmu] /home/moge/myprojects/ultrascale_linux/bootloader/pmu/bin/pmufw.elf
+	 [destination_cpu=a53-0, exception_level=el-3, trustzone] /home/moge/myprojects/ultrascale_linux/bootloader/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31/bl31.elf
+	 [destination_cpu=a53-0, load=0x100000] /home/moge/myprojects/ultrascale_linux/system_hw_description/system-top.dtb
+	 [destination_cpu=a53-0, exception_level=el-2] /home/moge/myprojects/ultrascale_linux/bootloader/uboot/generated/src/dist/u-boot.elf
 }
