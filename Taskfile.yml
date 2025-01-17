@@ -53,6 +53,8 @@ tasks:
     aliases: [bfsu]
     desc: "clone and build flash stripe utility"
     cmds:
+      - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
+      - test -d qemu-ug-examples && rm -rf qemu-ug-examples || echo "continue"
       - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu-ug-examples
       - cd qemu-ug-examples && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
       - cd qemu-ug-examples/flash_stripe_utilities/ && gcc flash_stripe.c -o flash_strip_bw -DFLASH_STRIPE_BW
