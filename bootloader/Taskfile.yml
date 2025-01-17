@@ -39,6 +39,7 @@ tasks:
       - task: bootgen:build_bg
       - task: atf:build_atf
       - task: uboot:build_uboot
+      - task: firstbl:bbl
       - sed 's:{BL_DIR}:{{.DIR_BOOTLOADER}}:' {{.biffile_template}} > {{.biffile}}  
       - sed -i -e 's:{HW_DESC_DIR}:{{.HW_DESC_DIR}}:' {{.biffile}} 
       - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
