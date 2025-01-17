@@ -60,7 +60,7 @@ tasks:
       bin_name: qemu_qspi.bin
       kernel: "../kernel/Image.itb"
       #initramfs: "../filesystems/initramfs.cpio.gz"
-      bootbin: "{{.ROOT_DIR}}/bootloader/boot.bin"
+      bootbin: "{{.ROOT_DIR}}/bootloader/generated/boot.bin"
       bootscr: "{{.ROOT_DIR}}/bootloader/boot.scr"
       flash_stripe: "{{.ROOT_DIR}}/qemu-ug-examples/flash_stripe_utilities/flash_strip_bw"
     cmds:
