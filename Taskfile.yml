@@ -7,6 +7,7 @@ vars:
     sh: echo "{{.USER_WORKING_DIR}}/toolchain/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf"
   TOP_DIR:
     sh: echo $(pwd)
+  QEMU_UG_OUTPUT: "{{.TOP_DIR}}/generated/qemu-ug-examples"
 
 includes:
   toolchain:
@@ -34,21 +35,20 @@ tasks:
   build_flash_stripe_util:
     aliases: [bfsu]
     desc: "clone and build flash stripe utility"
+    dir: "{{.QEMU_UG_OUTPUT}}"
     cmds:
       - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
-      - test -d qemu-ug-examples && rm -rf qemu-ug-examples || echo "continue"
-      - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu-ug-examples
-      - cd qemu-ug-examples && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
-      - cd qemu-ug-examples/flash_stripe_utilities/ && gcc flash_stripe.c -o flash_strip_bw -DFLASH_STRIPE_BW
+      - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu_uge
+      - cd qemu_uge && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
+      - cd qemu_uge/flash_stripe_utilities/ && gcc flash_stripe.c -o flash_strip_bw -DFLASH_STRIPE_BW
     sources:
-      - qemu-ug-examples/flash_stripe_utilities/flash_strip.c
+      - qemu_uge/flash_stripe_utilities/flash_strip.c
     generates:
-      - qemu-ug-examples/flash_stripe_utilities/flash_strip_bw
+      - qemu_uge/flash_stripe_utilities/flash_strip_bw
 
 
   build_qemu_qspi_drive:
     dir: qemu
-    #deps: [build_flash_stripe_util, build_itb]
     deps: [build_flash_stripe_util]
     aliases: [bqqd]
     desc: "build qspi persistent memory fo qemu (NOR) "
@@ -62,7 +62,7 @@ tasks:
       #initramfs: "../filesystems/initramfs.cpio.gz"
       bootbin: "{{.ROOT_DIR}}/bootloader/generated/boot.bin"
       bootscr: "{{.ROOT_DIR}}/bootloader/boot.scr"
-      flash_stripe: "{{.ROOT_DIR}}/qemu-ug-examples/flash_stripe_utilities/flash_strip_bw"
+      flash_stripe: "{{.QEMU_UG_OUTPUT}}/qemu_uge/flash_stripe_utilities/flash_strip_bw"
     cmds:
       - task: toolchain:export_bmt
       - task: earlyboot:build_bootbin
