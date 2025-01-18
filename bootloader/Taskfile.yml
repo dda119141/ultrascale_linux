@@ -9,6 +9,8 @@ includes:
   uboot: 
     taskfile: ./uboot/Taskfile.yml
     dir: ./uboot
+    vars:
+      BL31: "{{.ROOT_DIR}}/bootloader/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31.bin"
   firstbl: 
     taskfile: ./coreboot/Taskfile.yml
     dir: ./coreboot

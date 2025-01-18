@@ -17,7 +17,10 @@ tasks:
   get_bl:
     desc: "get bootloader"
     aliases: [gbl]
+    vars:
+       GIT_VERSION: "6f01ec6cdeb8d723900a60947e0e09ef520f7c1c"
     status:
+       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
       - test -d {{.OUT_DIR}} && rm -rf {{.OUT_DIR}} || echo "continue"
       - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b initial_development {{.OUT_DIR}}

@@ -10,6 +10,14 @@ vars:
   DIST_DIR: "dist"
 
 tasks:
+   get_host_dependencies:
+     desc: "retrieve build dependencies"
+     cmds:
+       - dpkg -l gcc-aarch64-linux-gnu >/dev/null && echo "continue" || sudo apt install gcc-aarch64-linux-gnu
+       - dpkg -l device-tree-compiler >/dev/null && echo "continue" || sudo apt install device-tree-compiler
+       - dpkg -l | grep flex >/dev/null && echo "continue" || sudo apt install flex
+       - dpkg -l | grep bison >/dev/null && echo "continue" || sudo apt install bison
+
    get_uboot:
      desc: "get uboot"
      aliases: [gub]
@@ -39,13 +47,9 @@ tasks:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.LOC_CROSS_COMPILE}}"
      cmds:
-       - dpkg -l gcc-aarch64-linux-gnu >/dev/null && echo "continue" || sudo apt install gcc-aarch64-linux-gnu
-       - dpkg -l device-tree-compiler >/dev/null && echo "continue" || sudo apt install device-tree-compiler
-       - dpkg -l | grep flex >/dev/null && echo "continue" || sudo apt install flex
-       - dpkg -l | grep bison >/dev/null && echo "continue" || sudo apt install bison
-
+       - task: get_host_dependencies
        - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
-       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
+       - DEVICE_TREE="{{.DEVICE_TREE}}" BL31={{.BL31}} make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
 
    clean_build_uboot:
      desc: "clean build linux uboot"
