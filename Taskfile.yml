@@ -66,6 +66,7 @@ tasks:
     cmds:
       - task: toolchain:export_bmt
       - task: earlyboot:build_bootbin
+      - task: build_itb
       - dd if=/dev/zero of={{.bin_name}} bs=128M count=1
       - dd if={{.bootbin}} of={{.bin_name}} bs=1 seek=0 conv=notrunc
       - dd if={{.bootscr}} of={{.bin_name}} bs=1 seek=65536000 conv=notrunc #offset 0x3e80000
@@ -131,7 +132,7 @@ tasks:
     generates:
       - "Image.itb"
     cmds:
-     - dpkg -l u-boot-tools && echo "continue" || sudo apt install u-boot-tools #for mkimage
+     - dpkg -l | grep u-boot-tools && echo "continue" || sudo apt install u-boot-tools -y  #for mkimage
      - task: kernel:bk
      - task: ramfs:bir
      - ln -sf {{.kernel}} Image

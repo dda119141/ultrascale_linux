@@ -53,6 +53,8 @@ tasks:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
+       - cp {{.TASKFILE_DIR}}/ulrr_defconfig {{.OUT_DIR}}/arch/{{.ARCH}}/configs/
+       - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} ulrr_defconfig
        - cd {{.OUT_DIR}} && make ARCH={{.ARCH}} -j 8 CROSS_COMPILE={{.CROSS_COMPILE}} Image modules
 
 
