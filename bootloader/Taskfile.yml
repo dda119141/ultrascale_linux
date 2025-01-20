@@ -6,6 +6,9 @@ includes:
   bootgen: 
     taskfile: ./bootgen/Taskfile.yml
     dir: ./bootgen
+  pmu: 
+    taskfile: ./pmu/Taskfile.yml
+    dir: ./pmu
   uboot: 
     taskfile: ./uboot/Taskfile.yml
     dir: ./uboot
@@ -39,6 +42,7 @@ tasks:
       bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
     cmds:
       - task: bootgen:build_bg
+      - task: pmu:default
       - task: atf:build_atf
       - task: uboot:build_uboot
       - task: firstbl:bbl

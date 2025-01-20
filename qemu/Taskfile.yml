@@ -12,10 +12,10 @@ tasks:
   get_dependencies:
     desc: "retrieve qemu host dependencies"
     cmds:
-      - dpkg -l | grep ninja-build >/dev/null && echo "continue" || (apt update && apt install -y ninja-build)
-      - dpkg -l | grep pkg-config >/dev/null && echo "continue" || (apt update && apt install -y pkg-config)
-      - dpkg -l | grep libglib2.0-dev >/dev/null && echo "continue" || (apt update && apt install -y libglib2.0-dev)
-      - dpkg -l | grep libpixman-1-dev >/dev/null && echo "continue" || (apt update && apt install -y libpixman-1-dev)
+      - dpkg -l | grep ninja-build >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y ninja-build)
+      - dpkg -l | grep pkg-config >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y pkg-config)
+      - dpkg -l | grep libglib2.0-dev >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y libglib2.0-dev)
+      - dpkg -l | grep libpixman-1-dev >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y libpixman-1-dev)
 
   clean_qemu:
     desc: "clean qemu"

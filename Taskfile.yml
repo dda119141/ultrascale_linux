@@ -79,11 +79,13 @@ tasks:
     internal: true
     vars:
       sd_drive_bin_name: qemu_sd.img
+      qemu_img: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-img"
+      qemu_nbd: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-nbd"
     cmds:
       - sudo apt install nbd-client nbd-server
       - sudo modprobe nbd #Load the necessary kernel modules
-      - sudo qemu-img create {{.sd_drive_bin_name}} 2G
-      - sudo qemu-nbd -f raw -c /dev/nbd0 {{.sd_drive_bin_name}} # connect image to network block device nbd
+      - sudo {{.qemu_img}} create {{.sd_drive_bin_name}} 2G
+      - sudo {{.qemu_nbd}} -f raw -c /dev/nbd0 {{.sd_drive_bin_name}} # connect image to network block device nbd
         #- qemu-nbd {{.sd_drive_bin_name}} & # connect image to network block device nbd
         #- sudo nbd-client localhost 1024 /dev/nbd0 #Connect to the disk
 
@@ -102,8 +104,10 @@ tasks:
   disconnect_nbd:
     desc: "Once the files are copied, disconnect the nbd connection"
     internal: true
+    vars:
+      qemu_nbd: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-nbd"
     cmds:
-      - sudo qemu-nbd -d /dev/nbd0
+      - sudo {{.qemu_nbd}} -d /dev/nbd0
    
  
   build_qemu_sd_drive:
