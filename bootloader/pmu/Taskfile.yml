@@ -1,0 +1,59 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+   OUT_DIR: "generated/src"
+   NPROC:
+     sh:
+       echo $(nproc)
+
+tasks:
+  get_dependencies:
+    desc: "retrieve dtc host dependencies"
+    cmds:
+      - dpkg -l | grep device-tree-compiler/ >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y device-tree-compiler)
+
+  clean_qemu_devicetrees:
+    desc: "clean qemu"
+    deps: [get_qemu_devicetrees]
+    cmds:
+      - cd {{.OUT_DIR}} && make clean
+
+  get_qemu_devicetrees:
+    desc: "get qemu"
+    vars:
+      GIT_VERSION: "xlnx_rel_v2022.2"
+    status:
+      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+    cmds:
+      - git clone https://github.com/Xilinx/qemu-devicetrees.git --depth 1 -b xlnx_rel_v2022.2 {{.OUT_DIR}}
+
+  configure_qemu_devicetrees:
+    desc: "configure qemu"
+    deps: [get_qemu_devicetrees]
+    cmds:
+      - task: get_dependencies
+ 
+  build_qemu_devicetrees:
+    desc: "build qemu"
+    deps: [configure_qemu_devicetrees]
+    cmds:
+      - cd {{.OUT_DIR}} && make
+    status:
+
+
+  clean_build_qemu_devicetrees:
+    desc: "clean build qemu"
+    cmds:
+      - task: clean_qemu_devicetrees
+      - task: build_qemu_devicetrees
+
+  default:
+    aliases: [pmu_rom]
+    desc: "retrieve pmu rom image"
+    cmds:
+      - curl -Lo {{.OUT_DIR}}/../pmu_rom.tgz https://www.xilinx.com/bin/public/openDownload?filename=PMU_ROM.tar.gz
+      - cd {{.OUT_DIR}}/../ && tar -xvf pmu_rom.tgz
+
+
