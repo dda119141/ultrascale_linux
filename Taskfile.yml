@@ -203,7 +203,7 @@ tasks:
         -machine-path {{.qemu_shmdir}}
 
   start_fsbl_on_qemu_debug:
-    aliases: [sooq]
+    aliases: [sfoqd]
     desc: "start fsbl on qemu emulator with -gdb tcp::1234 (arg -s) "
     summary: |
       in order to use it, go to fsbl dir and 
