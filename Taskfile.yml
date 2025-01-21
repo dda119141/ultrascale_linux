@@ -8,6 +8,7 @@ vars:
   TOP_DIR:
     sh: echo $(pwd)
   QEMU_UG_OUTPUT: "{{.TOP_DIR}}/generated/qemu-ug-examples"
+  QEMU_GENERATED: "{{.TOP_DIR}}/generated"
 
 includes:
   toolchain:
@@ -16,6 +17,7 @@ includes:
   qemu: 
     taskfile: ./qemu/Taskfile.yml
     dir: ./qemu
+    internal: true
   ramfs: 
     taskfile: ./filesystems/initramfs/Taskfile.yml
     dir: ./filesystems/initramfs/
@@ -156,4 +158,106 @@ tasks:
      - ln -sf {{.initramfs}} initramfs.cpio.gz
      - mkimage -f zcu102.its Image.itb
 
+  start_os_on_qemu:
+    aliases: [sooq]
+    desc: "start os on qemu emulator"
+    vars:
+      drives_dir: "{{.ROOT_DIR}}/drives"
+      qemu_dir: "{{.ROOT_DIR}}/qemu"
+      qemu_xilinx: "{{.ROOT_DIR}}/qemu/generated/src/build"
+      pmu_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.ROOT_DIR}}/bootloader/pmu/generated/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.ROOT_DIR}}/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf"
+      qemu_shmdir: "/tmp/tmpmor_aano"
+      QSPI_24BIT: "1"
+      QSPI_24BIT_INDEX: "0"
+      QSPI_32BIT: "2"
+      QSPI_32BIT_INDEX: "1"
+    cmds:
+      - test -d {{.qemu_shmdir}} && rm -rvf {{.qemu_shmdir}}
+      - test -d {{.qemu_shmdir}} || mkdir -p {{.qemu_shmdir}}
+      - touch {{.qemu_shmdir}}/qemu-rport-_pmu@0
+      - |
+        sudo {{.qemu_xilinx}}/qemu-system-microblazeel -M microblaze-fdt \
+        -display none \
+        -hw-dtb {{.pmu_dtb}} \
+        -kernel {{.pmu_rom}} \
+        -machine-path {{.qemu_shmdir}} \
+        & \
+        sudo {{.qemu_xilinx}}/qemu-system-aarch64 \
+        -machine arm-generic-fdt \
+        -m 4096 \
+        -nographic \
+        -chardev stdio,mux=on,id=char0,logfile={{.QEMU_GENERATED}}/os_boot.log,signal=off \
+        -mon chardev=char0,mode=readline \
+        -serial chardev:char0 \
+        -hw-dtb {{.hw_dtb}} \
+        -global xlnx,zynqmp-boot.cpu-num=0 \
+        -global xlnx,zynqmp-boot.use-pmufw=false \
+        -device loader,file={{.fsbl}},cpu-num=0 \
+        -drive file={{.qemu_dir}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
+        -drive file={{.qemu_dir}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
+        -drive file={{.drives_dir}}/qemu_sd.img,if=sd,format=raw,index=1 \
+        -boot mode={{.QSPI_32BIT}} \
+        -machine-path {{.qemu_shmdir}}
+
+  start_fsbl_on_qemu_debug:
+    aliases: [sooq]
+    desc: "start fsbl on qemu emulator with -gdb tcp::1234 (arg -s) "
+    summary: |
+      in order to use it, go to fsbl dir and 
+      start gdb e.g aarch64-none-elf-gdb fsbl_a53.elf
+      then perform "target remote :1234" for remote
+      debugging (gdb_on_host <-- tcp:1234 --> fsbl on qemu)
+    vars:
+      qemu_dir: "{{.ROOT_DIR}}/qemu"
+      qemu_xilinx: "{{.ROOT_DIR}}/qemu/generated/src/build"
+      pmu_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.ROOT_DIR}}/bootloader/pmu/generated/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.ROOT_DIR}}/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf"
+      qemu_shmdir: "/tmp/tmpmor_aano"
+      QSPI_24BIT: "1"
+      QSPI_24BIT_INDEX: "0"
+      QSPI_32BIT: "2"
+      QSPI_32BIT_INDEX: "1"
+    cmds:
+      - test -d {{.qemu_shmdir}} && rm -rvf {{.qemu_shmdir}}
+      - test -d {{.qemu_shmdir}} || mkdir -p {{.qemu_shmdir}}
+      - touch {{.qemu_shmdir}}/qemu-rport-_pmu@0
+      - |
+        sudo {{.qemu_xilinx}}/qemu-system-microblazeel -M microblaze-fdt \
+        -display none \
+        -hw-dtb {{.pmu_dtb}} \
+        -kernel {{.pmu_rom}} \
+        -machine-path {{.qemu_shmdir}} \
+        & \
+        sudo {{.qemu_xilinx}}/qemu-system-aarch64 \
+        -machine arm-generic-fdt \
+        -m 4096 \
+        -s -S \
+        -nographic \
+        -chardev stdio,mux=on,id=char0,logfile={{.QEMU_GENERATED}}/os_boot_debug.log,signal=off \
+        -mon chardev=char0,mode=readline \
+        -serial chardev:char0 \
+        -hw-dtb {{.hw_dtb}} \
+        -global xlnx,zynqmp-boot.cpu-num=0 \
+        -global xlnx,zynqmp-boot.use-pmufw=false \
+        -device loader,file={{.fsbl}},cpu-num=0 \
+        -drive file={{.qemu_dir}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
+        -drive file={{.qemu_dir}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
+        -boot mode={{.QSPI_32BIT}} \
+        -machine-path {{.qemu_shmdir}}
+
+
+  build_and_start_os:
+    aliases: [basos]
+    desc: "build os and launch it on qemu emulator"
+    cmds:
+      - task: qemu:build_qemu
+      - task: build_qemu_qspi_drive
+      - task: build_qemu_sd_drive
+      - task: start_os_on_qemu
+ 
 
