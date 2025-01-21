@@ -1,23 +1,23 @@
 # Motivation
 
-The purpose of this repository is to provide a complete build system based on task files.
+This repository offers a comprehensive build system utilizing YAML-based task files for Linux development on AMD's Xilinx Zynq Ultrascale+ SOC. Adhering to the YAGNI (You Aren't Gonna Need It) principle, the project focuses on efficiently retrieving essential host and target dependencies required for embedded Linux deployment.
 
-Task files are YAML schema based file containing OS commands or procedures. It is written
-in the go language. For more informations visit:
+Leveraging Taskfile, a Go-language task management tool, the system provides transparent and streamlined component build procedures through YAML schema files. By simplifying the build process, this approach enhances clarity and reduces complexity in managing Linux build configurations for Armv8a architecture.
+
+The primary objective is to create a robust, minimalist build framework for Xilinx Ultrascale+ embedded systems.
+
+For more informations on task files visit:
 
 https://taskfile.dev/
-
-The taskfiles based build system will provide the means to build Linux components needed
-for running Embedded Linux on the Armv8a Xilinx Zynq Ultrascale+ SOC.
 
 
 ---
 
 ## Use Cases
 
-This repository means to support main build system use cases for Linux on Ultrascale SOC.
+The following workflow describes the main components built within this solution.
 
-![Main use cases](files/Taskfile_Use_Cases.svg)
+![Main use cases](files/build_qemu_os.drawio.svg)
 
 
 
