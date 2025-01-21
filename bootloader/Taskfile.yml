@@ -61,17 +61,4 @@ tasks:
       - "{{.bootgen}} -read boot.bin | more"
 
 
-  read_bootbin_header_table_orig:
-    aliases: [rbbhto]
-    desc: "read boot.bin header table"
-    internal: true
-    vars:
-      biffile: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/bootgen.bif"
-      bootbin: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/work/zcu102_zynqmp-xilinx-linux/xilinx-bootbin/1.0-r0/xilinx-bootbin-1.0/BOOT.bin"
-      bootgen: "{{.HOME}}/work/yocto/xilinx/zcu102/generated/tmp/sysroots-components/x86_64/bootgen-native/usr/bin/bootgen"
-    cmds:
-      - "{{.bootgen}} -read {{.bootbin}} | more"
-
-
-
 

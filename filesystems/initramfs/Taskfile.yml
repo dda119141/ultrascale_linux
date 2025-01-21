@@ -4,7 +4,6 @@ version: '3'
 
 vars:
   GREETING: Hello, World!
-  YOCTO_DEPLOY_DIR: "{{.HOME}}/yocto/ulrr/generated/tmp/deploy/images/zcu102-zynqmp"
 
 tasks:
   get_host_dependencies:
