@@ -6,9 +6,14 @@ includes:
   bootgen: 
     taskfile: ./bootgen/Taskfile.yml
     dir: ./bootgen
+  pmu: 
+    taskfile: ./pmu/Taskfile.yml
+    dir: ./pmu
   uboot: 
     taskfile: ./uboot/Taskfile.yml
     dir: ./uboot
+    vars:
+      BL31: "{{.ROOT_DIR}}/bootloader/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31.bin"
   firstbl: 
     taskfile: ./coreboot/Taskfile.yml
     dir: ./coreboot
@@ -16,7 +21,7 @@ includes:
     taskfile: ./arm_trusted_firmware/Taskfile.yml
     dir: ./arm_trusted_firmware
     vars:
-        PATCH_DIR: "{{.TASKFILE_DIR}}/arm_trusted_firmware"
+        PATCH_DIR: "{{.TASKFILE_DIR}}/patches"
         TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
  
 tasks:
@@ -37,8 +42,10 @@ tasks:
       bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
     cmds:
       - task: bootgen:build_bg
+      - task: pmu:default
       - task: atf:build_atf
       - task: uboot:build_uboot
+      - task: firstbl:bbl
       - sed 's:{BL_DIR}:{{.DIR_BOOTLOADER}}:' {{.biffile_template}} > {{.biffile}}  
       - sed -i -e 's:{HW_DESC_DIR}:{{.HW_DESC_DIR}}:' {{.biffile}} 
       - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"

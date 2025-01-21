@@ -16,8 +16,10 @@ tasks:
      vars:
        GIT_VERSION: "bc531ba7e5a365c307c9a4ffdb155641fd7065f8"
      status:
-       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+       - cd {{.OUT_DIR}} && git log | grep "Support QEMU COSIM Platform"
+       #    - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
      cmds:
+      - test -d {{.OUT_DIR}} && rm -rf {{.OUT_DIR}} || echo "continue"
       - git clone https://github.com/Xilinx/arm-trusted-firmware.git --depth 1 -b xilinx-v2022.2 {{.OUT_DIR}}
 
    atf_apply_patch:

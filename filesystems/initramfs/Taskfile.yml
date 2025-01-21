@@ -7,6 +7,11 @@ vars:
   YOCTO_DEPLOY_DIR: "{{.HOME}}/yocto/ulrr/generated/tmp/deploy/images/zcu102-zynqmp"
 
 tasks:
+  get_host_dependencies:
+    desc: "retrieve build dependencies"
+    cmds:
+      - dpkg -l | grep ncurses-dev && echo "continue" || sudo apt install ncurses-dev
+ 
   get_dropbear:
     dir: generated
     desc: "get dropbear"
@@ -31,8 +36,8 @@ tasks:
     desc: "build busybox"
     deps: [get_busybox]
     cmds:
+      - task: get_host_dependencies
       - make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
-      - make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- menuconfig
       - make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
     status:
       - cat .config | grep "CONFIG_STATIC=y"

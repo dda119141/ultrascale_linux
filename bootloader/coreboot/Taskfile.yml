@@ -17,10 +17,13 @@ tasks:
   get_bl:
     desc: "get bootloader"
     aliases: [gbl]
+    vars:
+       GIT_VERSION: "initial_development"
     status:
+       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
-      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b initial_development {{.OUT_DIR}}
-
+      - test -d {{.OUT_DIR}} && rm -rf {{.OUT_DIR}} || echo "continue"
+      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b {{.GIT_VERSION}} {{.OUT_DIR}}
 
   build_comp:
     dir: "{{.comp_dir}}"
@@ -29,7 +32,7 @@ tasks:
     env:
       PATH: "{{.PATH}}"
     cmds:
-      #- cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "Ninja"
+      - dpkg -l | grep cmake >/dev/null && echo "continue" || sudo apt install cmake -y
       - cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCROSS_COMPILE={{.CROSS_DIR}}/{{.CROSS_COMPILE}} -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
       - cmake --build build/
     preconditions:
@@ -51,7 +54,7 @@ tasks:
     aliases: [bbl]
     desc: "build bootloader"
     cmds:
-      - dpkg -l ninja-build >/dev/null && echo "continue" || sudo apt install ninja-build
+      - dpkg -l ninja-build >/dev/null && echo "continue" || sudo apt install ninja-build -y
       - task: build_comp
         vars:
           comp_dir: "{{.OUT_DIR}}"
