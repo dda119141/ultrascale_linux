@@ -11,6 +11,7 @@ vars:
 tasks:
   get_dependencies:
     desc: "retrieve qemu host dependencies"
+    internal: true
     cmds:
       - dpkg -l | grep ninja-build >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y ninja-build)
       - dpkg -l | grep pkg-config >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y pkg-config)

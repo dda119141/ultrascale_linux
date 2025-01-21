@@ -12,18 +12,26 @@ vars:
 includes:
   toolchain:
     taskfile: ./toolchain/Taskfile.yml
+    internal: true
+  qemu: 
+    taskfile: ./qemu/Taskfile.yml
+    dir: ./qemu
   ramfs: 
     taskfile: ./filesystems/initramfs/Taskfile.yml
     dir: ./filesystems/initramfs/
+    internal: true
   rootfs: 
     taskfile: ./filesystems/rootfs/Taskfile.yml
     dir: ./filesystems/rootfs/
+    internal: true
   kernel: 
     taskfile: ./kernel/Taskfile.yml
     dir: ./kernel
+    internal: true
   earlyboot: 
     taskfile: ./bootloader/Taskfile.yml
     dir: ./bootloader
+    internal: true
     vars:
       TOOLCHAIN_DIR: "{{.TOOLCHAIN_BMT}}"
       BASE_DIR: "{{.ROOT_DIR}}"
@@ -36,6 +44,7 @@ tasks:
     aliases: [bfsu]
     desc: "clone and build flash stripe utility"
     dir: "{{.QEMU_UG_OUTPUT}}"
+    internal: true
     cmds:
       - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
       - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu_uge
@@ -76,6 +85,7 @@ tasks:
   create_sd_drive:
     dir: drives
     desc: "create sd drive"
+    deps: [qemu:build_qemu]
     internal: true
     vars:
       sd_drive_bin_name: qemu_sd.img
@@ -91,11 +101,11 @@ tasks:
 
   partition_sd_drive:
     aliases: [psd]
+    internal: true
     dir: drives
     deps: [create_sd_drive]
     desc: "partition sd drive"
     cmds:
-        #- sudo sfdisk -d /dev/nbd0 > sd_card.layout
       - sudo sfdisk /dev/nbd0 < sd_card.layout
         #      - sudo fdisk /dev/nbd0 # for manually partitionning
       - sudo mkfs.vfat /dev/nbd0p1
@@ -104,6 +114,7 @@ tasks:
   disconnect_nbd:
     desc: "Once the files are copied, disconnect the nbd connection"
     internal: true
+    deps: [qemu:build_qemu]
     vars:
       qemu_nbd: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-nbd"
     cmds:
@@ -124,6 +135,7 @@ tasks:
   build_itb:
     dir: kernel
     aliases: [bitb]
+    internal: true
     desc: "build linux itb image"
     vars:
       kernel: "generated/src/arch/arm64/boot/Image"
