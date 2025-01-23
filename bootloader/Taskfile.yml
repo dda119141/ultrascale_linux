@@ -2,27 +2,37 @@
 
 version: '3'
 
+DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
+
 includes:
   bootgen: 
     taskfile: ./bootgen/Taskfile.yml
     dir: ./bootgen
+    vars:
+      DIR_BOOTLOADER: "{{.DIR_BOOTLOADER}}"
   pmu: 
     taskfile: ./pmu/Taskfile.yml
     dir: ./pmu
+    vars:
+      DIR_BOOTLOADER: "{{.DIR_BOOTLOADER}}"
   uboot: 
     taskfile: ./uboot/Taskfile.yml
     dir: ./uboot
     vars:
-      BL31: "{{.ROOT_DIR}}/bootloader/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31.bin"
+      DIR_BOOTLOADER: "{{.DIR_BOOTLOADER}}"
+      BL31: "{{.DIR_BOOTLOADER}}/atf/src/build/zynqmp/debug/bl31.bin"
   firstbl: 
     taskfile: ./coreboot/Taskfile.yml
     dir: ./coreboot
+    vars:
+      DIR_BOOTLOADER: "{{.DIR_BOOTLOADER}}"
   atf: 
     taskfile: ./arm_trusted_firmware/Taskfile.yml
     dir: ./arm_trusted_firmware
     vars:
-        PATCH_DIR: "{{.TASKFILE_DIR}}/patches"
-        TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
+      DIR_BOOTLOADER: "{{.DIR_BOOTLOADER}}"
+      PATCH_DIR: "{{.TASKFILE_DIR}}/patches"
+      TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
  
 tasks:
   clean_comp:
@@ -31,16 +41,21 @@ tasks:
     cmds:
       - rm -rf build
 
+  create_bootloader_folder:
+    desc: "create bootloader folder"
+    cmds:
+      - test -d {{.DIR_BOOTLOADER}} || mkdir {{.DIR_BOOTLOADER}}
+ 
   build_bootbin:
     aliases: [bbb]
     desc: "build boot.bin file for initial boot"
-    dir: generated
     vars:
       bootgen_dir: "{{.DIR_BOOTLOADER}}/bootgen"
-      biffile_template: "{{.bootgen_dir}}/bootgen.in.bif"
+      biffile_template: "{{.TASKFILE_DIR}}/bootgen/bootgen.in.bif"
       biffile: "{{.bootgen_dir}}/bootgen.bif"
-      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
+      bootgen: "{{.bootgen_dir}}/src/bootgen"
     cmds:
+      - task: create_bootloader_folder
       - task: bootgen:build_bg
       - task: pmu:default
       - task: atf:build_atf
@@ -48,17 +63,17 @@ tasks:
       - task: firstbl:bbl
       - sed 's:{BL_DIR}:{{.DIR_BOOTLOADER}}:' {{.biffile_template}} > {{.biffile}}  
       - sed -i -e 's:{HW_DESC_DIR}:{{.HW_DESC_DIR}}:' {{.biffile}} 
-      - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o boot.bin"
+      - "{{.bootgen}} -arch zynqmp -image {{.biffile}} -w on -o {{.DIR_BOOTLOADER}}/boot.bin"
 
   read_bootbin_header_table:
     aliases: [rbbht]
     desc: "read boot.bin header table"
     vars:
-      bootgen_dir: "bootgen"
+      bootgen_dir: "{{.DIR_BOOTLOADER}}/bootgen"
       biffile: "{{.bootgen_dir}}/bootgen.bif"
-      bootgen: "{{.bootgen_dir}}/generated/src/bootgen"
+      bootgen: "{{.bootgen_dir}}/src/bootgen"
     cmds:
-      - "{{.bootgen}} -read boot.bin | more"
+      - "{{.bootgen}} -read {{.DIR_BOOTLOADER}}/boot.bin | more"
 
 
 

@@ -8,7 +8,9 @@ vars:
   TOP_DIR:
     sh: echo $(pwd)
   QEMU_UG_OUTPUT: "{{.TOP_DIR}}/generated/qemu-ug-examples"
-  QEMU_GENERATED: "{{.TOP_DIR}}/generated"
+  QEMU_GENERATED: "{{.TOP_DIR}}/generated/qemu"
+  QEMU_GENERATED_OUT: "{{.TOP_DIR}}/generated/qemu/out"
+  DIR_BOOTLOADER: '{{.USER_WORKING_DIR}}/generated/bootloader'
 
 includes:
   toolchain:
@@ -29,34 +31,52 @@ includes:
   kernel: 
     taskfile: ./kernel/Taskfile.yml
     dir: ./kernel
-    internal: true
+      #    internal: true
   earlyboot: 
     taskfile: ./bootloader/Taskfile.yml
     dir: ./bootloader
     internal: true
     vars:
       TOOLCHAIN_DIR: "{{.TOOLCHAIN_BMT}}"
-      BASE_DIR: "{{.ROOT_DIR}}"
+      BASE_DIR: "{{.USER_WORKING_DIR}}"
       HW_DESC_DIR: "{{.TOP_DIR}}/system_hw_description"
-      DIR_BOOTLOADER: "{{.TOP_DIR}}/bootloader"
+      DIR_BOOTLOADER: "{{.USER_WORKING_DIR}}/generated/bootloader"
 
 
 tasks:
+  clone_flash_stripe_util:
+    desc: "clone flash stripe utility"
+    dir: "{{.QEMU_UG_OUTPUT}}"
+    internal: true
+    vars:
+      GIT_VERSION: "8b3082b0a50cdc79e0a8e343dd845d61c1285f6b"
+    status:
+      - cat qemu_uge/.git/HEAD | grep {{.GIT_VERSION}}
+    cmds:
+      - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
+      - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu_uge
+      - cd qemu_uge && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
+ 
   build_flash_stripe_util:
     aliases: [bfsu]
     desc: "clone and build flash stripe utility"
     dir: "{{.QEMU_UG_OUTPUT}}"
     internal: true
     cmds:
-      - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
-      - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu_uge
-      - cd qemu_uge && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
+      - task: clone_flash_stripe_util
       - cd qemu_uge/flash_stripe_utilities/ && gcc flash_stripe.c -o flash_strip_bw -DFLASH_STRIPE_BW
     sources:
       - qemu_uge/flash_stripe_utilities/flash_strip.c
     generates:
       - qemu_uge/flash_stripe_utilities/flash_strip_bw
 
+  create_qemu_folder:
+    desc: "create kernel folder"
+    internal: true
+    cmds:
+     - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
+     - test -d {{.QEMU_GENERATED}} || mkdir {{.QEMU_GENERATED}}
+     - test -d {{.QEMU_GENERATED_OUT}} || mkdir {{.QEMU_GENERATED_OUT}}
 
   build_qemu_qspi_drive:
     dir: qemu
@@ -70,34 +90,34 @@ tasks:
     vars:
       bin_name: qemu_qspi.bin
       kernel: "../kernel/Image.itb"
-      #initramfs: "../filesystems/initramfs.cpio.gz"
-      bootbin: "{{.ROOT_DIR}}/bootloader/generated/boot.bin"
-      bootscr: "{{.ROOT_DIR}}/bootloader/boot.scr"
+      initramfs: "../filesystems/initramfs.cpio.gz"
+      bootbin: "{{.USER_WORKING_DIR}}/generated/bootloader/boot.bin"
+      bootscr: "{{.TASKFILE_DIR}}/bootloader/boot.scr"
       flash_stripe: "{{.QEMU_UG_OUTPUT}}/qemu_uge/flash_stripe_utilities/flash_strip_bw"
     cmds:
+      - task: create_qemu_folder
       - task: toolchain:export_bmt
       - task: earlyboot:build_bootbin
       - task: build_itb
-      - dd if=/dev/zero of={{.bin_name}} bs=128M count=1
-      - dd if={{.bootbin}} of={{.bin_name}} bs=1 seek=0 conv=notrunc
-      - dd if={{.bootscr}} of={{.bin_name}} bs=1 seek=65536000 conv=notrunc #offset 0x3e80000
-      - dd if={{.kernel}} of={{.bin_name}} bs=1 seek=15990784 conv=notrunc #offset 0xF40000
-      - "{{.flash_stripe}} qemu_qspi.bin qemu_qspi_low.bin qemu_qspi_high.bin"
+      - dd if=/dev/zero of={{.QEMU_GENERATED_OUT}}/{{.bin_name}} bs=128M count=1
+      - dd if={{.bootbin}} of={{.QEMU_GENERATED_OUT}}/{{.bin_name}} bs=1 seek=0 conv=notrunc
+      - dd if={{.bootscr}} of={{.QEMU_GENERATED_OUT}}/{{.bin_name}} bs=1 seek=65536000 conv=notrunc #offset 0x3e80000
+      - dd if={{.kernel}} of={{.QEMU_GENERATED_OUT}}/{{.bin_name}} bs=1 seek=15990784 conv=notrunc #offset 0xF40000
+      - "{{.flash_stripe}} {{.QEMU_GENERATED_OUT}}/qemu_qspi.bin {{.QEMU_GENERATED_OUT}}/qemu_qspi_low.bin {{.QEMU_GENERATED_OUT}}/qemu_qspi_high.bin"
 
   create_sd_drive:
-    dir: drives
     desc: "create sd drive"
     deps: [qemu:build_qemu]
     internal: true
     vars:
       sd_drive_bin_name: qemu_sd.img
-      qemu_img: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-img"
-      qemu_nbd: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-nbd"
+      qemu_img: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-img"
+      qemu_nbd: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-nbd"
     cmds:
       - sudo apt install nbd-client nbd-server
       - sudo modprobe nbd #Load the necessary kernel modules
-      - sudo {{.qemu_img}} create {{.sd_drive_bin_name}} 2G
-      - sudo {{.qemu_nbd}} -f raw -c /dev/nbd0 {{.sd_drive_bin_name}} # connect image to network block device nbd
+      - sudo {{.qemu_img}} create {{.QEMU_GENERATED_OUT}}/{{.sd_drive_bin_name}} 2G
+      - sudo {{.qemu_nbd}} -f raw -c /dev/nbd0 {{.QEMU_GENERATED_OUT}}/{{.sd_drive_bin_name}} # connect image to network block device nbd
         #- qemu-nbd {{.sd_drive_bin_name}} & # connect image to network block device nbd
         #- sudo nbd-client localhost 1024 /dev/nbd0 #Connect to the disk
 
@@ -118,7 +138,7 @@ tasks:
     internal: true
     deps: [qemu:build_qemu]
     vars:
-      qemu_nbd: "{{.ROOT_DIR}}/qemu/generated/src/build/qemu-nbd"
+      qemu_nbd: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-nbd"
     cmds:
       - sudo {{.qemu_nbd}} -d /dev/nbd0
    
@@ -127,7 +147,7 @@ tasks:
     aliases: [bqsd]
     desc: "build qemu sd drive"
     vars:
-      rootfs: "{{.TASKFILE_DIR}}/filesystems/rootfs/generated/rootfs/rootfs.ext3"
+      rootfs: "{{.USER_WORKING_DIR}}/generated/rootfs/rootfs.ext3"
     cmds:
       - task: partition_sd_drive
       - task: rootfs:default
@@ -140,9 +160,9 @@ tasks:
     internal: true
     desc: "build linux itb image"
     vars:
-      kernel: "generated/src/arch/arm64/boot/Image"
-      dtb: "device-tree/zynqmp-zcu102-rev1.0.dtb"
-      initramfs: "{{.ROOT_DIR}}/filesystems/initramfs/generated/initramfs.cpio.gz"
+      kernel: "{{.USER_WORKING_DIR}}/generated/kernel/src/arch/arm64/boot/Image"
+      dtb: "{{.USER_WORKING_DIR}}/generated/kernel/device_tree/src/arm64/xilinx/zynqmp-zcu102-rev1.0.dtb"
+      initramfs: "{{.USER_WORKING_DIR}}/generated/initramfs/initramfs.cpio.gz"
     sources:
       - "{{.kernel}}"
       - "{{.dtb}}"
@@ -162,13 +182,11 @@ tasks:
     aliases: [sooq]
     desc: "start os on qemu emulator"
     vars:
-      drives_dir: "{{.ROOT_DIR}}/drives"
-      qemu_dir: "{{.ROOT_DIR}}/qemu"
-      qemu_xilinx: "{{.ROOT_DIR}}/qemu/generated/src/build"
-      pmu_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
-      pmu_rom: "{{.ROOT_DIR}}/bootloader/pmu/generated/PMU_ROM/pmu-rom.elf"
-      hw_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
-      fsbl: "{{.ROOT_DIR}}/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf"
+      qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
+      pmu_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.DIR_BOOTLOADER}}/pmu/src/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.DIR_BOOTLOADER}}/coreboot/src/build/fsboot_a53_zc102.elf"
       qemu_shmdir: "/tmp/tmpmor_aano"
       QSPI_24BIT: "1"
       QSPI_24BIT_INDEX: "0"
@@ -196,9 +214,9 @@ tasks:
         -global xlnx,zynqmp-boot.cpu-num=0 \
         -global xlnx,zynqmp-boot.use-pmufw=false \
         -device loader,file={{.fsbl}},cpu-num=0 \
-        -drive file={{.qemu_dir}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
-        -drive file={{.qemu_dir}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
-        -drive file={{.drives_dir}}/qemu_sd.img,if=sd,format=raw,index=1 \
+        -drive file={{.QEMU_GENERATED_OUT}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
+        -drive file={{.QEMU_GENERATED_OUT}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
+        -drive file={{.QEMU_GENERATED_OUT}}/qemu_sd.img,if=sd,format=raw,index=1 \
         -boot mode={{.QSPI_32BIT}} \
         -machine-path {{.qemu_shmdir}}
 
@@ -211,12 +229,11 @@ tasks:
       then perform "target remote :1234" for remote
       debugging (gdb_on_host <-- tcp:1234 --> fsbl on qemu)
     vars:
-      qemu_dir: "{{.ROOT_DIR}}/qemu"
-      qemu_xilinx: "{{.ROOT_DIR}}/qemu/generated/src/build"
-      pmu_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
-      pmu_rom: "{{.ROOT_DIR}}/bootloader/pmu/generated/PMU_ROM/pmu-rom.elf"
-      hw_dtb: "{{.ROOT_DIR}}/bootloader/pmu/generated/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
-      fsbl: "{{.ROOT_DIR}}/bootloader/coreboot/generated/src/build/fsboot_a53_zc102.elf"
+      qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
+      pmu_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.DIR_BOOTLOADER}}/pmu/src/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.DIR_BOOTLOADER}}/coreboot/src/build/fsboot_a53_zc102.elf"
       qemu_shmdir: "/tmp/tmpmor_aano"
       QSPI_24BIT: "1"
       QSPI_24BIT_INDEX: "0"
@@ -245,8 +262,8 @@ tasks:
         -global xlnx,zynqmp-boot.cpu-num=0 \
         -global xlnx,zynqmp-boot.use-pmufw=false \
         -device loader,file={{.fsbl}},cpu-num=0 \
-        -drive file={{.qemu_dir}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
-        -drive file={{.qemu_dir}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
+        -drive file={{.QEMU_GENERATED_OUT}}/qemu_qspi_low.bin,if=mtd,format=raw,index=0 \
+        -drive file={{.QEMU_GENERATED_OUT}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
         -boot mode={{.QSPI_32BIT}} \
         -machine-path {{.qemu_shmdir}}
 
@@ -260,4 +277,3 @@ tasks:
       - task: build_qemu_sd_drive
       - task: start_os_on_qemu
  
-

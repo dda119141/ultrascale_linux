@@ -6,7 +6,7 @@ vars:
   LOC_CROSS_COMPILE: "aarch64-linux-gnu-"
   ARCH: "arm"
   DEVICE_TREE: "zynqmp-zcu102-rev1.0"
-  OUT_DIR: "generated/src"
+  UBOOT_OUT_DIR: "{{.DIR_BOOTLOADER}}/uboot/src"
   DIST_DIR: "dist"
 
 tasks:
@@ -18,38 +18,51 @@ tasks:
        - dpkg -l | grep flex >/dev/null && echo "continue" || sudo apt install flex
        - dpkg -l | grep bison >/dev/null && echo "continue" || sudo apt install bison
 
+   create_uboot_folder:
+     desc: "create uboot folder"
+     internal: true
+     cmds:
+      - test -d {{.DIR_BOOTLOADER}}/uboot || mkdir {{.DIR_BOOTLOADER}}/uboot
+      - test -d {{.UBOOT_OUT_DIR}} || mkdir {{.UBOOT_OUT_DIR}}
+
    get_uboot:
      desc: "get uboot"
      aliases: [gub]
      vars:
        GIT_VERSION: "b81542a91fb0012afea6dcfde9af25079df26865"
      status:
-       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+       - cat {{.UBOOT_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
      cmds:
-      - git clone https://github.com/Xilinx/u-boot-xlnx.git --depth 1 -b xilinx-v2022.2 {{.OUT_DIR}}
+      - task: create_uboot_folder
+      - test -d {{.UBOOT_OUT_DIR}} && rm -rf {{.UBOOT_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/u-boot-xlnx.git --depth 1 -b xilinx-v2022.2 {{.UBOOT_OUT_DIR}}
 
    clean_uboot:
      desc: "clean uboot source"
      aliases: [cub]
-     dir: "{{.OUT_DIR}}"
      env:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.LOC_CROSS_COMPILE}}"
      cmds:
-       - make ARCH={{.ARCH}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} O={{.DIST_DIR}} distclean
+       - |
+         cd {{.UBOOT_OUT_DIR}} && \
+         make ARCH={{.ARCH}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} O={{.DIST_DIR}} distclean
 
    build_uboot:
      desc: "build linux uboot"
      aliases: [bub]
      deps: [gub]
-     dir: "{{.OUT_DIR}}"
      env:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.LOC_CROSS_COMPILE}}"
      cmds:
        - task: get_host_dependencies
-       - DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
-       - DEVICE_TREE="{{.DEVICE_TREE}}" BL31={{.BL31}} make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
+       - |
+         cd {{.UBOOT_OUT_DIR}} && \
+         DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
+       - |
+         cd {{.UBOOT_OUT_DIR}} && \
+         DEVICE_TREE="{{.DEVICE_TREE}}" BL31={{.BL31}} make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
 
    clean_build_uboot:
      desc: "clean build linux uboot"

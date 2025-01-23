@@ -4,7 +4,8 @@ version: '3'
 
 vars:
    BRANCH: "xlnx_rel_v2022.2"
-   OUT_DIR: "generated/src"
+   DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
+   BOOTGEN_OUT_DIR: "{{.DIR_BOOTLOADER}}/bootgen/src"
 
 
 tasks:
@@ -14,36 +15,30 @@ tasks:
     cmds:
       - make clean
 
+  create_bootgen_folder:
+    desc: "create bootgen folder"
+    cmds:
+      - test -d {{.DIR_BOOTLOADER}}/bootgen || mkdir {{.DIR_BOOTLOADER}}/bootgen
+      - test -d {{.BOOTGEN_OUT_DIR}} || mkdir {{.BOOTGEN_OUT_DIR}}
+ 
   get_bl:
     desc: "get bootgen"
     aliases: [gbg]
     status:
-      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.BRANCH}}
+      - cat {{.BOOTGEN_OUT_DIR}}/.git/HEAD | grep {{.BRANCH}}
     cmds:
-      - git clone https://github.com/Xilinx/bootgen.git --depth 1 -b {{.BRANCH}} {{.OUT_DIR}}
-
-
-  build_comp:
-    dir: "{{.comp_dir}}"
-    deps: [gbg]
-    silent: true
-    env:
-      PATH: "{{.PATH}}"
-    cmds:
-      - make
-        #- make -std=c++0x
-
+      - task: create_bootgen_folder
+      - test -d {{.BOOTGEN_OUT_DIR}} && rm -rf {{.BOOTGEN_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/bootgen.git --depth 1 -b {{.BRANCH}} {{.BOOTGEN_OUT_DIR}}
 
   build_bg:
     aliases: [bbg]
     desc: "build bootgen"
     status:
-      - readelf -h {{.OUT_DIR}}/bootgen | grep "Advanced Micro Devices X86-64"
+      - readelf -h {{.BOOTGEN_OUT_DIR}}/bootgen | grep "Advanced Micro Devices X86-64"
     cmds:
       - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install -f libssl-dev
-      - task: build_comp
-        vars:
-          comp_dir: "{{.OUT_DIR}}"
+      - cd {{.BOOTGEN_OUT_DIR}} && make
 
   clean_bl:
     aliases: [cbg]
@@ -51,7 +46,7 @@ tasks:
     cmds:
       - task: clean_comp
         vars:
-          comp_dir: "{{.OUT_DIR}}"
+          comp_dir: "{{.BOOTGEN_OUT_DIR}}"
 
 
 

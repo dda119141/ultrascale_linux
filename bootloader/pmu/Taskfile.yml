@@ -3,7 +3,8 @@
 version: '3'
 
 vars:
-   OUT_DIR: "generated/src"
+   DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
+   PMU_OUT_DIR: "{{.DIR_BOOTLOADER}}/pmu/src"
    NPROC:
      sh:
        echo $(nproc)
@@ -14,20 +15,28 @@ tasks:
     cmds:
       - dpkg -l | grep device-tree-compiler/ >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y device-tree-compiler)
 
+  create_pmu_folder:
+    desc: "create pmu folder"
+    cmds:
+      - test -d {{.DIR_BOOTLOADER}}/pmu || mkdir {{.DIR_BOOTLOADER}}/pmu
+      - test -d {{.PMU_OUT_DIR}} || mkdir {{.PMU_OUT_DIR}}
+
   clean_qemu_devicetrees:
     desc: "clean qemu"
     deps: [get_qemu_devicetrees]
     cmds:
-      - cd {{.OUT_DIR}} && make clean
+      - cd {{.PMU_OUT_DIR}} && make clean
 
   get_qemu_devicetrees:
     desc: "get qemu"
     vars:
       GIT_VERSION: "xlnx_rel_v2022.2"
     status:
-      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+      - cat {{.PMU_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
-      - git clone https://github.com/Xilinx/qemu-devicetrees.git --depth 1 -b xlnx_rel_v2022.2 {{.OUT_DIR}}
+      - task: create_pmu_folder
+      - test -d {{.PMU_OUT_DIR}} && rm -rf {{.PMU_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/qemu-devicetrees.git --depth 1 -b xlnx_rel_v2022.2 {{.PMU_OUT_DIR}}
 
   configure_qemu_devicetrees:
     desc: "configure qemu"
@@ -39,7 +48,7 @@ tasks:
     desc: "build qemu"
     deps: [configure_qemu_devicetrees]
     cmds:
-      - cd {{.OUT_DIR}} && make
+      - cd {{.PMU_OUT_DIR}} && make
     status:
 
 
@@ -52,8 +61,13 @@ tasks:
   default:
     aliases: [pmu_rom]
     desc: "retrieve pmu rom image"
+    status:
+      - readelf -h {{.PMU_OUT_DIR}}/PMU_ROM/pmu-rom.elf | grep "7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00"
     cmds:
-      - curl -Lo {{.OUT_DIR}}/../pmu_rom.tgz https://www.xilinx.com/bin/public/openDownload?filename=PMU_ROM.tar.gz
-      - cd {{.OUT_DIR}}/../ && tar -xvf pmu_rom.tgz
+      - task: create_pmu_folder
+      - test -d {{.PMU_OUT_DIR}}/bin || mkdir {{.PMU_OUT_DIR}}/bin
+      - cp {{.TASKFILE_DIR}}/bin/pmufw.elf {{.PMU_OUT_DIR}}/bin/
+      - curl -Lo {{.PMU_OUT_DIR}}/pmu_rom.tgz https://www.xilinx.com/bin/public/openDownload?filename=PMU_ROM.tar.gz
+      - cd {{.PMU_OUT_DIR}} && tar -xvf pmu_rom.tgz
 
 
