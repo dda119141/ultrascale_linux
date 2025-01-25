@@ -2,18 +2,27 @@
 
 version: '3'
 vars:
-  rootfs_out: generated/rootfs
-  rootfs_name: generated/rootfs/rootfs.ext3
-  rootfs_folder: generated/rootfs/src
-  #rootfs_folder: /mnt/aarch64
+  ROOTFS_OUT_DIR: "{{.USER_WORKING_DIR}}/generated/rootfs"
+  ROOTFS_OUT_FILE: "{{.USER_WORKING_DIR}}/generated/rootfs/rootfs.ext3"
+  ROOTFS_OUT_DIR_SRC: "{{.USER_WORKING_DIR}}/generated/rootfs/src"
 
 tasks:
+
+  create_initramfs_folder:
+    desc: "create kernel folder"
+    internal: true
+    cmds:
+      - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
+      - test -d {{.USER_WORKING_DIR}}/generated/rootfs || mkdir {{.USER_WORKING_DIR}}/generated/rootfs
+      - test -d {{.ROOTFS_OUT_DIR}} || mkdir {{.ROOTFS_OUT_DIR}}
+      - test -d {{.ROOTFS_OUT_DIR_SRC}} || mkdir {{.ROOTFS_OUT_DIR_SRC}}
+
 
   umount_rootfs_if_mounted:
     desc: "umount rootfs if mounted"
     internal: true
     cmds:
-      - mount | grep "{{.rootfs_folder}}" && sudo umount "{{.rootfs_folder}}" || echo "nothing to do - continue"
+      - mount | grep "{{.ROOTFS_OUT_DIR_SRC}}" && sudo umount "{{.ROOTFS_OUT_DIR_SRC}}" || echo "nothing to do - continue"
 
 
   prepare_rootfs_ext3:
@@ -21,34 +30,35 @@ tasks:
     aliases: [pre]
     cmds:
       - task: umount_rootfs_if_mounted
-      - test -d {{.rootfs_out}} && rm -rf {{.rootfs_out}}/* || mkdir -p {{.rootfs_out}} 
-      - dd if=/dev/zero of={{.rootfs_name}} bs=400M count=1
-      - mkfs.ext3 {{.rootfs_name}}
-      - test -d {{.rootfs_folder}} && sudo rm -rf {{.rootfs_folder}}/* || sudo mkdir -p {{.rootfs_folder}} 
-      - sudo mount -o loop {{.rootfs_name}} {{.rootfs_folder}}
+      - test -d {{.ROOTFS_OUT_DIR}} && rm -rf {{.ROOTFS_OUT_DIR}}/* || mkdir -p {{.ROOTFS_OUT_DIR}} 
+      - dd if=/dev/zero of={{.ROOTFS_OUT_FILE}} bs=400M count=1
+      - mkfs.ext3 {{.ROOTFS_OUT_FILE}}
+      - test -d {{.ROOTFS_OUT_DIR_SRC}} && sudo rm -rf {{.ROOTFS_OUT_DIR_SRC}}/* || sudo mkdir -p {{.ROOTFS_OUT_DIR_SRC}} 
+      - sudo mount -o loop {{.ROOTFS_OUT_FILE}} {{.ROOTFS_OUT_DIR_SRC}}
 
 
   install_systemd_to_rootfs:
-    dir: "{{.rootfs_folder}}"
+    dir: "{{.ROOTFS_OUT_DIR_SRC}}"
     desc: "install systemd"
     cmds:
-      - curl -O http://ftp.de.debian.org/debian/pool/main/g/glibc/libc6_2.31-13+deb11u6_arm64.deb
-      - dpkg-deb -x libc6_2.31-13+deb11u6_arm64.deb .
-      - curl -O http://ftp.de.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.2.5-2.1~deb11u1_arm64.deb
-      - dpkg-deb -x liblzma5_5.2.5-2.1~deb11u1_arm64.deb .
-      - curl -O http://ftp.de.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.3-2_arm64.deb
-      - dpkg-deb -x liblz4-1_1.9.3-2_arm64.deb .
-      - curl -O http://ftp.de.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.4.8+dfsg-2.1_arm64.deb
-      - dpkg-deb -x libzstd1_1.4.8+dfsg-2.1_arm64.deb .
-      - curl -Lo libgcrypt.deb http://ftp.de.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.8.7-6_arm64.deb
-      - dpkg-deb -x libgcrypt.deb .
-      - curl -Lo systemd.deb http://ftp.de.debian.org/debian/pool/main/s/systemd/libsystemd0_247.3-7+deb11u2_arm64.deb
-      - dpkg-deb -x systemd.deb .
-      - rm -rf *.deb
+      - |
+        cd {{.ROOTFS_OUT_DIR_SRC}} && \
+        curl -O http://ftp.de.debian.org/debian/pool/main/g/glibc/libc6_2.31-13+deb11u6_arm64.deb && \
+        dpkg-deb -x libc6_2.31-13+deb11u6_arm64.deb . && \
+        curl -O http://ftp.de.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.2.5-2.1~deb11u1_arm64.deb && \
+        dpkg-deb -x liblzma5_5.2.5-2.1~deb11u1_arm64.deb . && \
+        curl -O http://ftp.de.debian.org/debian/pool/main/l/lz4/liblz4-1_1.9.3-2_arm64.deb && \
+        dpkg-deb -x liblz4-1_1.9.3-2_arm64.deb . && \
+        curl -O http://ftp.de.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.4.8+dfsg-2.1_arm64.deb && \
+        dpkg-deb -x libzstd1_1.4.8+dfsg-2.1_arm64.deb . && \
+        curl -Lo libgcrypt.deb http://ftp.de.debian.org/debian/pool/main/libg/libgcrypt20/libgcrypt20_1.8.7-6_arm64.deb && \
+        dpkg-deb -x libgcrypt.deb . && \
+        curl -Lo systemd.deb http://ftp.de.debian.org/debian/pool/main/s/systemd/libsystemd0_247.3-7+deb11u2_arm64.deb && \
+        dpkg-deb -x systemd.deb . && \
+        rm -rf *.deb
 
   debootstrap_broken:
     desc: "debootstrap rootfs"
-    dir: "{{.rootfs_folder}}"
     internal: true
     cmds:
       - dpkg -l qemu-user-static && echo "continue" || sudo apt install qemu-user-static
@@ -57,10 +67,9 @@ tasks:
         sudo qemu-debootstrap --arch arm64  \
         --include="apt-transport-https,curl" \
         --exclude="debfoster" bullseye \
-        {{.TASKFILE_DIR}}/{{.rootfs_folder}} \
+        {{.ROOTFS_OUT_DIR_SRC}} \
         http://ftp.uk.debian.org/debian
       - task: set_hostname_and_password
-
 
   debootstrap:
     desc: "debootstrap rootfs"
@@ -70,31 +79,34 @@ tasks:
       - |
         sudo qemu-debootstrap --arch arm64  \
         bullseye \
-        {{.TASKFILE_DIR}}/{{.rootfs_folder}} \
+        {{.ROOTFS_OUT_DIR_SRC}} \
         http://ftp.uk.debian.org/debian
       - task: set_hostname_and_password
 
 
   set_hostname_and_password:
-    dir: "{{.rootfs_folder}}"
     desc: "set hostname and password"
     internal: true
     cmds:
-      - echo 'radar' | sudo chroot . /bin/tee /etc/hostname
-      - echo "root:root" | sudo chroot . /usr/sbin/chpasswd
+      - |
+        cd {{.ROOTFS_OUT_DIR_SRC}} && \
+        echo 'radar' | sudo chroot . /bin/tee /etc/hostname && \
+        echo "root:root" | sudo chroot . /usr/sbin/chpasswd
 
 
   get_into_rootfs:
-    dir: "{{.rootfs_folder}}"
+    dir: "{{.ROOTFS_OUT_DIR_SRC}}"
     desc: "chroot to rootfs"
     cmds:
-      - sudo apt install qemu-user-static
-      - sudo cp $(which qemu-aarch64-static) usr/bin/
-      - sudo chroot . usr/bin/qemu-aarch64-static bin/bash
+      - |
+        cd {{.ROOTFS_OUT_DIR_SRC}} && \
+        sudo apt install qemu-user-static && \
+        sudo cp $(which qemu-aarch64-static) usr/bin/ && \
+        sudo chroot . usr/bin/qemu-aarch64-static bin/bash
 
   assemble_rootfs:
     aliases: [arf]
-    dir: "{{.rootfs_folder}}"
+    dir: "{{.ROOTFS_OUT_DIR_SRC}}"
     desc: "build rootfs folder"
     cmds:
       - pwd
@@ -108,7 +120,7 @@ tasks:
     desc: "build rootfs image"
     cmds:
       - task: assemble_rootfs
-      - sudo umount {{.rootfs_folder}}
+      - sudo umount {{.ROOTFS_OUT_DIR_SRC}}
 
  
   

@@ -4,85 +4,115 @@ version: '3'
 
 vars:
   GREETING: Hello, World!
+  INITRAMFS_OUT_DIR: "{{.USER_WORKING_DIR}}/generated/initramfs"
+  INITRAMFS_OUT_DIR_SRC: "{{.USER_WORKING_DIR}}/generated/initramfs/src"
 
 tasks:
   get_host_dependencies:
     desc: "retrieve build dependencies"
+    internal: true
     cmds:
       - dpkg -l | grep ncurses-dev && echo "continue" || sudo apt install ncurses-dev
+
+  create_initramfs_folder:
+    desc: "create kernel folder"
+    internal: true
+    cmds:
+      - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
+      - test -d {{.USER_WORKING_DIR}}/generated/initramfs || mkdir {{.USER_WORKING_DIR}}/generated/initramfs
+      - test -d {{.INITRAMFS_OUT_DIR}} || mkdir {{.INITRAMFS_OUT_DIR}}
+      - test -d {{.INITRAMFS_OUT_DIR_SRC}} || mkdir {{.INITRAMFS_OUT_DIR_SRC}}
+
  
   get_dropbear:
-    dir: generated
     desc: "get dropbear"
+    internal: true
     cmds:
-      - wget https://matt.ucc.asn.au/dropbear/releases/dropbear-2022.83.tar.bz2
-      - tar -xjf dropbear-2022.83.tar.bz2
+      - task: create_initramfs_folder
+      - |
+        cd {{.INITRAMFS_OUT_DIR}} && \
+        wget https://matt.ucc.asn.au/dropbear/releases/dropbear-2022.83.tar.bz2 && \
+        tar -xjf dropbear-2022.83.tar.bz2
     status:
-      - test -f dropbear-2022.83.tar.bz2
+      - |
+        cd {{.INITRAMFS_OUT_DIR}} && \
+        test -f dropbear-2022.83.tar.bz2
 
  
   get_busybox:
-    dir: generated
     desc: "get busybox"
+    internal: true
     cmds:
-      - wget https://busybox.net/downloads/busybox-1.36.1.tar.bz2
-      - tar -xjf busybox-1.36.1.tar.bz2
+      - task: create_initramfs_folder
+      - |
+        cd {{.INITRAMFS_OUT_DIR}} && \
+        wget https://busybox.net/downloads/busybox-1.36.1.tar.bz2 && \
+        tar -xjf busybox-1.36.1.tar.bz2
     status:
-      - test -f busybox-1.36.1.tar.bz2
+      - |
+        cd {{.INITRAMFS_OUT_DIR}} && \
+        test -f busybox-1.36.1.tar.bz2
 
   build_busybox:
-    dir: generated/busybox-1.36.1
     desc: "build busybox"
     deps: [get_busybox]
     cmds:
       - task: get_host_dependencies
-      - make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
-      - make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+      - |
+        cd {{.INITRAMFS_OUT_DIR}}/busybox-1.36.1 && \
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig && \
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
     status:
-      - cat .config | grep "CONFIG_STATIC=y"
-      - file busybox | grep "ELF 64-bit LSB executable, ARM aarch64"
+      - |
+        cd {{.INITRAMFS_OUT_DIR}}/busybox-1.36.1 && \
+        cat .config | grep "CONFIG_STATIC=y" && \
+        file busybox | grep "ELF 64-bit LSB executable, ARM aarch64"
 
   build_dropbear:
-    dir: generated/dropbear-2022.83
     desc: "build_and_install dropbear"
     deps: [get_dropbear]
     cmds:
-      - ./configure --host=aarch64-linux-gnu --prefix=/ --disable-zlib --disable-utmp --disable-lastlog --disable-wtmp --disable-loginfunc --disable-pam --enable-static CC=aarch64-linux-gnu-gcc LD=aarch64-linux-gnu-ld
-      - make
-    status:
+      - |
+        cd {{.INITRAMFS_OUT_DIR}}/dropbear-2022.83 && \
+        ./configure --host=aarch64-linux-gnu --prefix=/ --disable-zlib --disable-utmp --disable-lastlog --disable-wtmp --disable-loginfunc --disable-pam --enable-static CC=aarch64-linux-gnu-gcc LD=aarch64-linux-gnu-ld && \
+        make
 
   install_busybox:
-    dir: generated/busybox-1.36.1
     desc: "install busybox"
     deps: [build_busybox]
     cmds:
-      - make ARCH=aarch64 CROSS_COMPILE=aarch64-linux-gnu- install CONFIG_PREFIX=../initramfs
+      - test -d {{.INITRAMFS_OUT_DIR_SRC}} && rm -r {{.INITRAMFS_OUT_DIR_SRC}}/*
+      - |
+        cd {{.INITRAMFS_OUT_DIR}}/busybox-1.36.1 && \
+        make ARCH=aarch64 CROSS_COMPILE=aarch64-linux-gnu- install CONFIG_PREFIX={{.INITRAMFS_OUT_DIR_SRC}}
 
   install_dropbear:
-    dir: generated/dropbear-2022.83
     desc: "install dropbear"
     deps: [build_dropbear]
     cmds:
-      - make install DESTDIR=../initramfs
+      - |
+        cd {{.INITRAMFS_OUT_DIR}}/dropbear-2022.83 && \
+        make install DESTDIR={{.INITRAMFS_OUT_DIR_SRC}}
 
   install_rootfs_folders:
-    dir: generated/initramfs
     desc: "install initramfs folders"
     deps: [install_busybox]
     cmds:
-      - mkdir proc sys dev etc etc/init.d usr/lib home home/root root
-      - touch init
-      - chmod +x init
-      - echo "#!/bin/sh" > init
-      - echo "mount -t proc none /proc" >> init
-      - echo "mount -t sysfs none /sys" >> init
-      - echo "mknod /dev/mmcblk0 b 179 0" >> init
-      - echo "mkdir -p mnt/bin" >> init
-      - echo "mount /dev/mmcblk0 mnt/bin" >> init
-      - echo "mkdir -p mnt/rootfs" >> init
-      - echo "mount -t ext3 mnt/bin/rootfs.ext3 mnt/rootfs/" >> init
-      - echo "chroot mnt/rootfs/ bin/bash" >> init
+      - task: create_initramfs_folder
       - |
+        cd {{.INITRAMFS_OUT_DIR_SRC}} && \
+        mkdir proc sys dev etc etc/init.d usr/lib home home/root root && \
+        touch init && \
+        chmod +x init && \
+        echo "#!/bin/sh" > init && \
+        echo "mount -t proc none /proc" >> init && \
+        echo "mount -t sysfs none /sys" >> init && \
+        echo "mknod /dev/mmcblk0 b 179 0" >> init && \
+        echo "mkdir -p mnt/bin" >> init && \
+        echo "mount /dev/mmcblk0 mnt/bin" >> init && \
+        echo "mkdir -p mnt/rootfs" >> init && \
+        echo "mount -t ext3 mnt/bin/rootfs.ext3 mnt/rootfs/" >> init && \
+        echo "chroot mnt/rootfs/ bin/bash" >> init && \
         echo "
         cat <<!
         Boot took $(cut -d ' ' -f1 /proc/uptime) seconds
@@ -102,10 +132,10 @@ tasks:
 
   build_initramfs:
     aliases: [bir]
-    dir: generated/initramfs
     desc: "build initramfs folders"
     cmds:
-      - test -d ../initramfs && rm -r * || echo "continue"
       - task: install_rootfs_folders
-      - find . | cpio --quiet -H newc -o | gzip -9 -n > ../initramfs.cpio.gz 
+      - |
+        cd {{.INITRAMFS_OUT_DIR_SRC}} && \
+        find . | cpio --quiet -H newc -o | gzip -9 -n > {{.INITRAMFS_OUT_DIR}}/initramfs.cpio.gz 
   

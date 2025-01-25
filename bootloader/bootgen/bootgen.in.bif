@@ -1,8 +1,8 @@
 the_ROM_image:
 {
-	 [bootloader,  destination_cpu=a53-0] {BL_DIR}/coreboot/generated/src/build/fsboot_a53_zc102.elf
-	 [destination_cpu=pmu] {BL_DIR}/pmu/bin/pmufw.elf
-	 [destination_cpu=a53-0, exception_level=el-3, trustzone] {BL_DIR}/arm_trusted_firmware/generated/src/build/zynqmp/debug/bl31/bl31.elf
+	 [bootloader,  destination_cpu=a53-0] {BL_DIR}/coreboot/src/build/fsboot_a53_zc102.elf
+	 [destination_cpu=pmu] {BL_DIR}/pmu/src/bin/pmufw.elf
+	 [destination_cpu=a53-0, exception_level=el-3, trustzone] {BL_DIR}/atf/src/build/zynqmp/debug/bl31/bl31.elf
 	 [destination_cpu=a53-0, load=0x100000] {HW_DESC_DIR}/system-top.dtb
-	 [destination_cpu=a53-0, exception_level=el-2] {BL_DIR}/uboot/generated/src/dist/u-boot.elf
+	 [destination_cpu=a53-0, exception_level=el-2] {BL_DIR}/uboot/src/dist/u-boot.elf
 }

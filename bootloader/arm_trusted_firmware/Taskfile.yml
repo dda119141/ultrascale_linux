@@ -5,52 +5,68 @@ version: '3'
 vars:
    CROSS_COMPILE: "aarch64-none-elf-"
    DEVICE_TREE: "zynqmp-zcu102-rev1.0"
-   OUT_DIR: "generated/src"
+   DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
+   ATF_OUT_DIR: "{{.DIR_BOOTLOADER}}/atf/src"
    DIST_DIR: "dist"
    TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
 
 tasks:
+
+   create_atf_folder:
+     desc: "create atf folder"
+     cmds:
+      - test -d {{.DIR_BOOTLOADER}}/atf || mkdir {{.DIR_BOOTLOADER}}/atf
+      - test -d {{.ATF_OUT_DIR}} || mkdir {{.ATF_OUT_DIR}}
+
    get_atf:
      desc: "get atf"
      aliases: [gub]
      vars:
        GIT_VERSION: "bc531ba7e5a365c307c9a4ffdb155641fd7065f8"
      status:
-       - cd {{.OUT_DIR}} && git log | grep "Support QEMU COSIM Platform"
-       #    - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+       - |
+         cd {{.ATF_OUT_DIR}} && \
+         git log | grep "Support QEMU COSIM Platform"
      cmds:
-      - test -d {{.OUT_DIR}} && rm -rf {{.OUT_DIR}} || echo "continue"
-      - git clone https://github.com/Xilinx/arm-trusted-firmware.git --depth 1 -b xilinx-v2022.2 {{.OUT_DIR}}
+      - task: create_atf_folder
+      - test -d {{.ATF_OUT_DIR}} && rm -rf {{.ATF_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/arm-trusted-firmware.git --depth 1 -b xilinx-v2022.2 {{.ATF_OUT_DIR}}
 
    atf_apply_patch:
      desc: "apply patch to atf source"
      aliases: [appt]
-     dir: "{{.OUT_DIR}}"
      cmds:
-       - git am {{.PATCH_DIR}}/0001-Disable-LOAD-segment-with-RWX-error.patch
+       - cd {{.ATF_OUT_DIR}} && git am {{.PATCH_DIR}}/0001-Disable-LOAD-segment-with-RWX-error.patch
      status:
-       - git log | grep "Disable LOAD segment with RWX error"
+       - |
+         cd {{.ATF_OUT_DIR}} && \
+         git log | grep "Disable LOAD segment with RWX error"
  
    clean_atf:
      desc: "clean atf source"
      aliases: [cub]
-     dir: "{{.OUT_DIR}}"
+     dir: "{{.ATF_OUT_DIR}}"
      env:
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
-       - PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j8 CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
+       - |
+         cd {{.ATF_OUT_DIR}} && \
+         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j8 CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
 
    build_atf:
      desc: "build atf"
      aliases: [bub]
-     dir: "{{.OUT_DIR}}"
+     status:
+      - readelf -h {{.ATF_OUT_DIR}}/build/zynqmp/debug/bl31.bin | head -n 20 | grep "f4 03 00 aa f5 03 01 aa  f6 03 02 aa f7 03 03 aa"
      env:
        PATH: "{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
        - task: get_atf
        - task: atf_apply_patch
-       - PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1 
+       - |
+         cd {{.ATF_OUT_DIR}} && \
+         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1
 
    clean_build_atf:
      desc: "clean build atf"

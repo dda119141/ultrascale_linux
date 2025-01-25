@@ -5,14 +5,22 @@ version: '3'
 vars:
    CROSS_COMPILE: "aarch64-none-elf-"
    DEVICE_TREE: "zynqmp-zcu102-rev1.0"
-   OUT_DIR: "generated/src"
+   DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
+   FSBL_OUT_DIR: "{{.DIR_BOOTLOADER}}/coreboot/src"
 
 tasks:
   clean_comp:
-    dir: "{{.comp_dir}}"
     desc: "clean component"
     cmds:
-      - rm -rf build
+       - |
+         cd {{.comp_dir}} && \
+         rm -rf build
+
+  create_coreboot_folder:
+    desc: "create coreboot folder"
+    cmds:
+      - test -d {{.DIR_BOOTLOADER}}/coreboot || mkdir {{.DIR_BOOTLOADER}}/coreboot
+      - test -d {{.FSBL_OUT_DIR}} || mkdir {{.FSBL_OUT_DIR}}
 
   get_bl:
     desc: "get bootloader"
@@ -20,35 +28,40 @@ tasks:
     vars:
        GIT_VERSION: "initial_development"
     status:
-       - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+       - cat {{.FSBL_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
-      - test -d {{.OUT_DIR}} && rm -rf {{.OUT_DIR}} || echo "continue"
-      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b {{.GIT_VERSION}} {{.OUT_DIR}}
+      - task: create_coreboot_folder
+      - test -d {{.FSBL_OUT_DIR}} && rm -rf {{.FSBL_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/dda119141/ultrascale_bootloader.git --depth 1 -b {{.GIT_VERSION}} {{.FSBL_OUT_DIR}}
 
   build_comp:
-    dir: "{{.comp_dir}}"
     deps: [gbl]
     desc: "build component"
     env:
       PATH: "{{.PATH}}"
     cmds:
       - dpkg -l | grep cmake >/dev/null && echo "continue" || sudo apt install cmake -y
-      - cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCROSS_COMPILE={{.CROSS_DIR}}/{{.CROSS_COMPILE}} -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
-      - cmake --build build/
+      - |
+        cd {{.comp_dir}} && \
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCROSS_COMPILE={{.CROSS_DIR}}/{{.CROSS_COMPILE}} -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain.cmake -G "Ninja"
+      - |
+        cd {{.comp_dir}} && \
+        cmake --build build/
     preconditions:
       - sh: test -f {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc
         msg: "Compiler {{.CROSS_DIR}}/{{.CROSS_COMPILE}}gcc is not installed..."
 
 
   debug_comp:
-    dir: "{{.comp_dir}}"
     desc: "cross debug component"
     vars:
           CROSS_DEBUG: "{{.CROSS_DIR}}/aarch64-none-elf-gdb"
           BINARY:
             sh: realpath $(find {{.comp_dir}} -iname *.elf) 
     cmds:
-      - "{{.CROSS_DEBUG}} {{.BINARY}}"
+       - |
+         cd {{.comp_dir}} && \
+         "{{.CROSS_DEBUG}} {{.BINARY}}"
 
   build_bl:
     aliases: [bbl]
@@ -57,7 +70,7 @@ tasks:
       - dpkg -l ninja-build >/dev/null && echo "continue" || sudo apt install ninja-build -y
       - task: build_comp
         vars:
-          comp_dir: "{{.OUT_DIR}}"
+          comp_dir: "{{.FSBL_OUT_DIR}}"
           CROSS_COMPILE: "aarch64-none-elf-"
           PATH: "{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}"
           CROSS_DIR: "{{.TOOLCHAIN_DIR}}/bin"
@@ -68,7 +81,7 @@ tasks:
     cmds:
       - task: clean_comp
         vars:
-          comp_dir: "{{.OUT_DIR}}"
+          comp_dir: "{{.FSBL_OUT_DIR}}"
           CROSS_COMPILE: "aarch64-none-elf-"
 
   debug_bl:
@@ -77,7 +90,7 @@ tasks:
     cmds:
       - task: debug_comp
         vars:
-          comp_dir: "{{.OUT_DIR}}"
+          comp_dir: "{{.FSBL_OUT_DIR}}"
           CROSS_DIR: "{{.TOOLCHAIN_DIR}}/bin"
 
 

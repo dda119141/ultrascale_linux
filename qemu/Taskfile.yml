@@ -3,7 +3,7 @@
 version: '3'
 
 vars:
-   OUT_DIR: "generated/src"
+   QEMU_OUT_DIR: "{{.USER_WORKING_DIR}}/generated/qemu/src"
    NPROC:
      sh:
        echo $(nproc)
@@ -22,26 +22,36 @@ tasks:
     desc: "clean qemu"
     deps: [get_qemu]
     cmds:
-      - cd {{.OUT_DIR}} && make clean
+      - cd {{.QEMU_OUT_DIR}} && make clean
+
+  create_qemu_folder:
+    desc: "create qemu folder"
+    internal: true
+    cmds:
+      - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
+      - test -d {{.USER_WORKING_DIR}}/generated/qemu || mkdir {{.USER_WORKING_DIR}}/generated/qemu
+      - test -d {{.QEMU_OUT_DIR}} || mkdir {{.QEMU_OUT_DIR}}
 
   get_qemu:
     desc: "get qemu"
     vars:
       GIT_VERSION: "xlnx_rel_v2022.2"
     status:
-      - cat {{.OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+      - cat {{.QEMU_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
-      - git clone https://github.com/Xilinx/qemu.git --depth 1 -b xlnx_rel_v2022.2 {{.OUT_DIR}}
+      - task: create_qemu_folder
+      - test -d {{.QEMU_OUT_DIR}} && rm -rf {{.QEMU_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/qemu.git --depth 1 -b xlnx_rel_v2022.2 {{.QEMU_OUT_DIR}}
 
   configure_qemu:
     desc: "configure qemu"
     deps: [get_qemu]
     status:
-      - readelf -h {{.OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
+      - readelf -h {{.QEMU_OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
     cmds:
       - task: get_dependencies
       - |
-        cd {{.OUT_DIR}} && ./configure --target-list=aarch64-softmmu,microblazeel-softmmu \
+        cd {{.QEMU_OUT_DIR}} && ./configure --target-list=aarch64-softmmu,microblazeel-softmmu \
         --enable-fdt \
         --disable-kvm \
         --disable-xen
@@ -50,9 +60,9 @@ tasks:
     desc: "build qemu"
     deps: [configure_qemu]
     cmds:
-      - cd {{.OUT_DIR}} && make -j{{.NPROC}}
+      - cd {{.QEMU_OUT_DIR}} && make -j{{.NPROC}}
     status:
-      - readelf -h {{.OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
+      - readelf -h {{.QEMU_OUT_DIR}}/build/qemu-system-aarch64 | grep "7f 45 4c 46 02 01 01 03 00 00 00 00 00 00 00 00"
 
 
   clean_build_qemu:
