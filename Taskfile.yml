@@ -10,7 +10,7 @@ vars:
   QEMU_UG_OUTPUT: "{{.TOP_DIR}}/generated/qemu-ug-examples"
   QEMU_GENERATED: "{{.TOP_DIR}}/generated/qemu"
   QEMU_GENERATED_OUT: "{{.TOP_DIR}}/generated/qemu/out"
-  DIR_BOOTLOADER: '{{.USER_WORKING_DIR}}/generated/bootloader'
+  DIR_BOOTLOADER_TOP: '{{.USER_WORKING_DIR}}/generated/bootloader'
 
 includes:
   toolchain:
@@ -31,7 +31,7 @@ includes:
   kernel: 
     taskfile: ./kernel/Taskfile.yml
     dir: ./kernel
-      #    internal: true
+    internal: true
   earlyboot: 
     taskfile: ./bootloader/Taskfile.yml
     dir: ./bootloader
@@ -41,7 +41,6 @@ includes:
       BASE_DIR: "{{.USER_WORKING_DIR}}"
       HW_DESC_DIR: "{{.TOP_DIR}}/system_hw_description"
       DIR_BOOTLOADER: "{{.USER_WORKING_DIR}}/generated/bootloader"
-
 
 tasks:
   clone_flash_stripe_util:
@@ -161,7 +160,7 @@ tasks:
     desc: "build linux itb image"
     vars:
       kernel: "{{.USER_WORKING_DIR}}/generated/kernel/src/arch/arm64/boot/Image"
-      dtb: "{{.USER_WORKING_DIR}}/generated/kernel/device_tree/src/arm64/xilinx/zynqmp-zcu102-rev1.0.dtb"
+      dtb: "{{.USER_WORKING_DIR}}/generated/kernel/src/arch/arm64/boot/dts/xilinx/zynqmp-zcu102-rev1.0.dtb"
       initramfs: "{{.USER_WORKING_DIR}}/generated/initramfs/initramfs.cpio.gz"
     sources:
       - "{{.kernel}}"
@@ -171,30 +170,32 @@ tasks:
       - "Image.itb"
     cmds:
      - dpkg -l | grep u-boot-tools && echo "continue" || sudo apt install u-boot-tools -y  #for mkimage
-     - task: kernel:bk
-     - task: ramfs:bir
+     - task: kernel:cbk
      - ln -sf {{.kernel}} Image
      - ln -sf {{.dtb}} kernel.dtb
-     - ln -sf {{.initramfs}} initramfs.cpio.gz
      - mkimage -f zcu102.its Image.itb
+       #     - task: ramfs:bir
+       #     - ln -sf {{.initramfs}} initramfs.cpio.gz
 
   start_os_on_qemu:
     aliases: [sooq]
     desc: "start os on qemu emulator"
     vars:
       qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
-      pmu_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
-      pmu_rom: "{{.DIR_BOOTLOADER}}/pmu/src/PMU_ROM/pmu-rom.elf"
-      hw_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
-      fsbl: "{{.DIR_BOOTLOADER}}/coreboot/src/build/fsboot_a53_zc102.elf"
+        #      pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.DIR_BOOTLOADER_TOP}}/coreboot/src/build/fsboot_a53_zc102.elf"
       qemu_shmdir: "/tmp/tmpmor_aano"
       QSPI_24BIT: "1"
       QSPI_24BIT_INDEX: "0"
       QSPI_32BIT: "2"
       QSPI_32BIT_INDEX: "1"
     cmds:
-      - test -d {{.qemu_shmdir}} && rm -rvf {{.qemu_shmdir}}
-      - test -d {{.qemu_shmdir}} || mkdir -p {{.qemu_shmdir}}
+      - task: earlyboot:pmu:build_qemu_devicetrees
+      - test -d {{.qemu_shmdir}} && rm -rvf {{.qemu_shmdir}} || echo "continue"
+      - test -d {{.qemu_shmdir}} || mkdir {{.qemu_shmdir}}
       - touch {{.qemu_shmdir}}/qemu-rport-_pmu@0
       - |
         sudo {{.qemu_xilinx}}/qemu-system-microblazeel -M microblaze-fdt \
@@ -218,8 +219,28 @@ tasks:
         -drive file={{.QEMU_GENERATED_OUT}}/qemu_qspi_high.bin,if=mtd,format=raw,index=1 \
         -drive file={{.QEMU_GENERATED_OUT}}/qemu_sd.img,if=sd,format=raw,index=1 \
         -boot mode={{.QSPI_32BIT}} \
-        -machine-path {{.qemu_shmdir}}
+        -machine-path {{.qemu_shmdir}} \
 
+  start_pmu_on_qemu:
+    aliases: [spmuoq]
+    vars:
+      qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
+        # pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/board-zynqmp-zcu102.dtb"
+      pmu_rom: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      qemu_shmdir: "/tmp/tmpmor_aano"
+    cmds:
+      - test -d {{.qemu_shmdir}} && rm -rvf {{.qemu_shmdir}} || echo "continue"
+      - test -d {{.qemu_shmdir}} || mkdir {{.qemu_shmdir}}
+      - touch {{.qemu_shmdir}}/qemu-rport-_pmu@0
+      - |
+        sudo {{.qemu_xilinx}}/qemu-system-microblazeel -M microblaze-fdt \
+        -display none \
+        -hw-dtb {{.pmu_dtb}} \
+        -kernel {{.pmu_rom}} \
+        -machine-path {{.qemu_shmdir}} 
+ 
   start_fsbl_on_qemu_debug:
     aliases: [sfoqd]
     desc: "start fsbl on qemu emulator with -gdb tcp::1234 (arg -s) "
@@ -230,10 +251,10 @@ tasks:
       debugging (gdb_on_host <-- tcp:1234 --> fsbl on qemu)
     vars:
       qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
-      pmu_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
-      pmu_rom: "{{.DIR_BOOTLOADER}}/pmu/src/PMU_ROM/pmu-rom.elf"
-      hw_dtb: "{{.DIR_BOOTLOADER}}/pmu/src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
-      fsbl: "{{.DIR_BOOTLOADER}}/coreboot/src/build/fsboot_a53_zc102.elf"
+      pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
+      pmu_rom: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/PMU_ROM/pmu-rom.elf"
+      hw_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
+      fsbl: "{{.DIR_BOOTLOADER_TOP}}/coreboot/src/build/fsboot_a53_zc102.elf"
       qemu_shmdir: "/tmp/tmpmor_aano"
       QSPI_24BIT: "1"
       QSPI_24BIT_INDEX: "0"

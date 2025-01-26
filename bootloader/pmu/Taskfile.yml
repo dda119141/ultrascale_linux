@@ -5,6 +5,7 @@ version: '3'
 vars:
    DIR_BOOTLOADER: '{{.DIR_BOOTLOADER| default "generated"}}'
    PMU_OUT_DIR: "{{.DIR_BOOTLOADER}}/pmu/src"
+   PMU_DTB_OUT_DIR: "{{.DIR_BOOTLOADER}}/pmu/qemu_dtb_src"
    NPROC:
      sh:
        echo $(nproc)
@@ -12,45 +13,47 @@ vars:
 tasks:
   get_dependencies:
     desc: "retrieve dtc host dependencies"
+    internal: true
     cmds:
-      - dpkg -l | grep device-tree-compiler/ >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y device-tree-compiler)
+      - dpkg -l | grep device-tree-compiler >/dev/null && echo "continue" || (sudo apt update && sudo apt install -y device-tree-compiler)
 
   create_pmu_folder:
     desc: "create pmu folder"
+    internal: true
     cmds:
       - test -d {{.DIR_BOOTLOADER}}/pmu || mkdir {{.DIR_BOOTLOADER}}/pmu
       - test -d {{.PMU_OUT_DIR}} || mkdir {{.PMU_OUT_DIR}}
+      - test -d {{.PMU_DTB_OUT_DIR}} || mkdir {{.PMU_DTB_OUT_DIR}}
 
   clean_qemu_devicetrees:
     desc: "clean qemu"
     deps: [get_qemu_devicetrees]
     cmds:
-      - cd {{.PMU_OUT_DIR}} && make clean
+      - cd {{.PMU_DTB_OUT_DIR}} && make clean
 
   get_qemu_devicetrees:
     desc: "get qemu"
     vars:
       GIT_VERSION: "xlnx_rel_v2022.2"
     status:
-      - cat {{.PMU_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+      - cat {{.PMU_DTB_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
       - task: create_pmu_folder
-      - test -d {{.PMU_OUT_DIR}} && rm -rf {{.PMU_OUT_DIR}} || echo "continue"
-      - git clone https://github.com/Xilinx/qemu-devicetrees.git --depth 1 -b xlnx_rel_v2022.2 {{.PMU_OUT_DIR}}
+      - test -d {{.PMU_DTB_OUT_DIR}} && rm -rf {{.PMU_DTB_OUT_DIR}} || echo "continue"
+      - git clone https://github.com/Xilinx/qemu-devicetrees.git --depth 1 -b xlnx_rel_v2022.2 {{.PMU_DTB_OUT_DIR}}
 
   configure_qemu_devicetrees:
-    desc: "configure qemu"
+    desc: "configure qemu device tree repo"
     deps: [get_qemu_devicetrees]
     cmds:
       - task: get_dependencies
  
   build_qemu_devicetrees:
-    desc: "build qemu"
+    desc: "build qemu device tree"
     deps: [configure_qemu_devicetrees]
     cmds:
-      - cd {{.PMU_OUT_DIR}} && make
+      - cd {{.PMU_DTB_OUT_DIR}} && make
     status:
-
 
   clean_build_qemu_devicetrees:
     desc: "clean build qemu"

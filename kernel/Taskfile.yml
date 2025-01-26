@@ -7,29 +7,40 @@ vars:
   ARCH: "arm64"
   KERNEL_OUT_DIR:
     sh: echo "{{.USER_WORKING_DIR}}/generated/kernel/src"
-  DEVICE_TREE_DIR:
-    sh: echo "{{.USER_WORKING_DIR}}/generated/kernel/device_tree"
+  NPROC:
+    sh:
+      echo $(nproc)
 
 tasks:
+   install_kernel_dependencies:
+     desc: "check and install host dependencies"
+     internal: true
+     cmds:
+       - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
+       - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install libssl-dev
+       - dpkg -l flex >/dev/null && echo "continue" || sudo apt install flex
+       - dpkg -l bison >/dev/null && echo "continue" || sudo apt install bison
+       - dpkg -l bc >/dev/null && echo "continue" || sudo apt install bc
+
    create_kernel_folder:
      desc: "create kernel folder"
      cmds:
-      - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
-      - test -d {{.USER_WORKING_DIR}}/generated/kernel || mkdir {{.USER_WORKING_DIR}}/generated/kernel
-      - test -d {{.KERNEL_OUT_DIR}} || mkdir {{.KERNEL_OUT_DIR}}
-      - test -d {{.DEVICE_TREE_DIR}} || mkdir {{.DEVICE_TREE_DIR}}
+       - test -d {{.USER_WORKING_DIR}}/generated || mkdir {{.USER_WORKING_DIR}}/generated
+       - test -d {{.USER_WORKING_DIR}}/generated/kernel || mkdir {{.USER_WORKING_DIR}}/generated/kernel
+       - test -d {{.KERNEL_OUT_DIR}} || mkdir {{.KERNEL_OUT_DIR}}
 
    get_kernel:
-    desc: "get kernel"
-    aliases: [gk]
-    vars:
-      GIT_VERSION: "19984dd147fa7fbb7cb14b17400263ad0925c189"
-    status:
-      - cat {{.KERNEL_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
-    cmds:
-      - task: create_kernel_folder
-      - test -d {{.KERNEL_OUT_DIR}} && rm -rf {{.KERNEL_OUT_DIR}} || echo "continue"
-      - git clone https://github.com/Xilinx/linux-xlnx.git --depth 1 -b xlnx_rebase_v5.15_LTS_2022.2 {{.KERNEL_OUT_DIR}}
+     desc: "get kernel"
+     aliases: [gk]
+     vars:
+       GIT_VERSION: "73099304b82e2667cce4b1baafeb9d47850dc697"
+     status:
+       - cat {{.KERNEL_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+     cmds:
+       - task: create_kernel_folder
+       - task: install_kernel_dependencies
+       - test -d {{.KERNEL_OUT_DIR}} && rm -rf {{.KERNEL_OUT_DIR}} || echo "continue"
+       - git clone https://github.com/Xilinx/linux-xlnx.git --depth 1 -b xlnx_rebase_v5.15_LTS_2022.2 {{.KERNEL_OUT_DIR}}
 
    clean_kernel:
      desc: "clean build linux kernel"
@@ -38,7 +49,7 @@ tasks:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
-       - sudo apt install build-essential libssl-dev flex bison bc #kernel build requires these packages
+       - task: install_kernel_dependencies
        - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} clean
 
    clean_build_kernel:
@@ -52,7 +63,17 @@ tasks:
        - task: clean_kernel
        - cp {{.TASKFILE_DIR}}/ulrr_defconfig {{.KERNEL_OUT_DIR}}/arch/{{.ARCH}}/configs/
        - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} ulrr_defconfig
-       - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} CROSS_COMPILE={{.CROSS_COMPILE}}
+       - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} -j {{.NPROC}} CROSS_COMPILE={{.CROSS_COMPILE}}
+
+   kernel_mount_rootfs_from_emmc:
+     desc: "kernel should mount rootfs from emmc"
+     vars:
+       GIT_VERSION: "73099304b82e2667cce4b1baafeb9d47850dc697"
+     status:
+       - cat {{.KERNEL_OUT_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
+     cmds:
+       - cd {{.KERNEL_OUT_DIR}} && git am {{.TASKFILE_DIR}}/patches/0001-xlnx_v5.15-boot_or_mount-rootfs-from-sd_card.patch
+
 
    build_kernel:
      desc: "build linux kernel"
@@ -62,29 +83,9 @@ tasks:
        ARCH: "{{.ARCH}}"
        CROSS_COMPILE: "{{.CROSS_COMPILE}}"
      cmds:
-       - task: build_device_tree
+       - task: kernel_mount_rootfs_from_emmc
        - cp {{.TASKFILE_DIR}}/ulrr_defconfig {{.KERNEL_OUT_DIR}}/arch/{{.ARCH}}/configs/
        - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} ulrr_defconfig
-       - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} -j 8 CROSS_COMPILE={{.CROSS_COMPILE}} Image modules
+       - cd {{.KERNEL_OUT_DIR}} && make ARCH={{.ARCH}} -j {{.NPROC}} CROSS_COMPILE={{.CROSS_COMPILE}} 
 
-
-   get_device_tree:
-     desc: "get device-tree"
-     aliases: [gdt]
-     vars:
-       GIT_VERSION: "586852c24344d1e44880f89d607ae8ac9b3587cf"
-     status:
-       - cat {{.DEVICE_TREE_DIR}}/.git/HEAD | grep {{.GIT_VERSION}}
-     cmds:
-       - task: create_kernel_folder
-       - test -d {{.DEVICE_TREE_DIR}} && rm -rf {{.DEVICE_TREE_DIR}} || echo "continue"
-       - git clone https://github.com/devicetree-org/devicetree-source.git --depth 1 -b v5.7-dts {{.DEVICE_TREE_DIR}}
-
-   build_device_tree:
-     desc: "build device-tree"
-     cmds:
-       - task: get_device_tree
-       - |
-         cd {{.DEVICE_TREE_DIR}} && make src/arm64/xilinx/zynqmp-zcu102-rev1.0.dtb
-    
 
