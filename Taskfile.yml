@@ -88,8 +88,8 @@ tasks:
       so 2 virtual NOR memory devices need to be created, each of it
     vars:
       bin_name: qemu_qspi.bin
-      kernel: "../kernel/Image.itb"
-      initramfs: "../filesystems/initramfs.cpio.gz"
+      itb_container: "{{.USER_WORKING_DIR}}/generated/kernel/Image.itb"
+      kernel: "{{.itb_container}}"
       bootbin: "{{.USER_WORKING_DIR}}/generated/bootloader/boot.bin"
       bootscr: "{{.TASKFILE_DIR}}/bootloader/boot.scr"
       flash_stripe: "{{.QEMU_UG_OUTPUT}}/qemu_uge/flash_stripe_utilities/flash_strip_bw"
@@ -162,18 +162,19 @@ tasks:
       kernel: "{{.USER_WORKING_DIR}}/generated/kernel/src/arch/arm64/boot/Image"
       dtb: "{{.USER_WORKING_DIR}}/generated/kernel/src/arch/arm64/boot/dts/xilinx/zynqmp-zcu102-rev1.0.dtb"
       initramfs: "{{.USER_WORKING_DIR}}/generated/initramfs/initramfs.cpio.gz"
+      itb_container: "{{.USER_WORKING_DIR}}/generated/kernel/Image.itb"
     sources:
       - "{{.kernel}}"
       - "{{.dtb}}"
       - "{{.initramfs}}"
     generates:
-      - "Image.itb"
+      - "{{.itb_container}}"
     cmds:
      - dpkg -l | grep u-boot-tools && echo "continue" || sudo apt install u-boot-tools -y  #for mkimage
      - task: kernel:cbk
      - ln -sf {{.kernel}} Image
      - ln -sf {{.dtb}} kernel.dtb
-     - mkimage -f zcu102.its Image.itb
+     - mkimage -f zcu102.its {{.itb_container}}
        #     - task: ramfs:bir
        #     - ln -sf {{.initramfs}} initramfs.cpio.gz
 
@@ -182,7 +183,6 @@ tasks:
     desc: "start os on qemu emulator"
     vars:
       qemu_xilinx: "{{.USER_WORKING_DIR}}/generated/qemu/src/build"
-        #      pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
       pmu_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zynqmp-pmu.dtb"
       pmu_rom: "{{.DIR_BOOTLOADER_TOP}}/pmu/src/PMU_ROM/pmu-rom.elf"
       hw_dtb: "{{.DIR_BOOTLOADER_TOP}}/pmu/qemu_dtb_src/LATEST/MULTI_ARCH/zcu102-arm.dtb"
