@@ -13,10 +13,10 @@ tasks:
    get_host_dependencies:
      desc: "retrieve build dependencies"
      cmds:
-       - dpkg -l gcc-aarch64-linux-gnu >/dev/null && echo "continue" || sudo apt install gcc-aarch64-linux-gnu
-       - dpkg -l device-tree-compiler >/dev/null && echo "continue" || sudo apt install device-tree-compiler
-       - dpkg -l | grep flex >/dev/null && echo "continue" || sudo apt install flex
-       - dpkg -l | grep bison >/dev/null && echo "continue" || sudo apt install bison
+       - dpkg -l gcc-aarch64-linux-gnu >/dev/null && echo "continue" || sudo apt install gcc-aarch64-linux-gnu -y
+       - dpkg -l device-tree-compiler >/dev/null && echo "continue" || sudo apt install device-tree-compiler -y
+       - dpkg -l | grep flex >/dev/null && echo "continue" || sudo apt install flex -y
+       - dpkg -l | grep bison >/dev/null && echo "continue" || sudo apt install bison -y
 
    create_uboot_folder:
      desc: "create uboot folder"

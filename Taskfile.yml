@@ -52,7 +52,7 @@ tasks:
     status:
       - cat qemu_uge/.git/HEAD | grep {{.GIT_VERSION}}
     cmds:
-      - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
+      - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install -y build-essential
       - git clone https://github.com/Xilinx/qemu-ug-examples.git qemu_uge
       - cd qemu_uge && git checkout 8b3082b0a50cdc79e0a8e343dd845d61c1285f6b 
  
@@ -68,6 +68,13 @@ tasks:
       - qemu_uge/flash_stripe_utilities/flash_strip.c
     generates:
       - qemu_uge/flash_stripe_utilities/flash_strip_bw
+
+  check_git_config:
+    desc: "create custom git config"
+    internal: true
+    cmds:
+     - git config -l | grep user.email || git config --global user.email "you@example.com"
+     - git config -l | grep user.name || git config --global user.name "Your Name"
 
   create_qemu_folder:
     desc: "create kernel folder"
@@ -94,6 +101,7 @@ tasks:
       bootscr: "{{.TASKFILE_DIR}}/bootloader/boot.scr"
       flash_stripe: "{{.QEMU_UG_OUTPUT}}/qemu_uge/flash_stripe_utilities/flash_strip_bw"
     cmds:
+      - task: check_git_config 
       - task: create_qemu_folder
       - task: toolchain:export_bmt
       - task: earlyboot:build_bootbin
@@ -113,7 +121,7 @@ tasks:
       qemu_img: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-img"
       qemu_nbd: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-nbd"
     cmds:
-      - sudo apt install nbd-client nbd-server
+      - sudo apt install -y nbd-client nbd-server
       - sudo modprobe nbd #Load the necessary kernel modules
       - sudo {{.qemu_img}} create {{.QEMU_GENERATED_OUT}}/{{.sd_drive_bin_name}} 2G
       - sudo {{.qemu_nbd}} -f raw -c /dev/nbd0 {{.QEMU_GENERATED_OUT}}/{{.sd_drive_bin_name}} # connect image to network block device nbd
@@ -170,8 +178,8 @@ tasks:
     generates:
       - "{{.itb_container}}"
     cmds:
-     - dpkg -l | grep u-boot-tools && echo "continue" || sudo apt install u-boot-tools -y  #for mkimage
-     - task: kernel:cbk
+     - dpkg -l | grep u-boot-tools && echo "continue" || sudo apt install -y u-boot-tools -y  #for mkimage
+     - task: kernel:bk
      - ln -sf {{.kernel}} Image
      - ln -sf {{.dtb}} kernel.dtb
      - mkimage -f zcu102.its {{.itb_container}}

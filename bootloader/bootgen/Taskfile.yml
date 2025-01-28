@@ -21,7 +21,7 @@ tasks:
       - test -d {{.DIR_BOOTLOADER}}/bootgen || mkdir {{.DIR_BOOTLOADER}}/bootgen
       - test -d {{.BOOTGEN_OUT_DIR}} || mkdir {{.BOOTGEN_OUT_DIR}}
  
-  get_bl:
+  get_bg:
     desc: "get bootgen"
     aliases: [gbg]
     status:
@@ -37,7 +37,8 @@ tasks:
     status:
       - readelf -h {{.BOOTGEN_OUT_DIR}}/bootgen | grep "Advanced Micro Devices X86-64"
     cmds:
-      - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install -f libssl-dev
+      - task: get_bg
+      - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install -y -f libssl-dev
       - cd {{.BOOTGEN_OUT_DIR}} && make
 
   clean_bl:
