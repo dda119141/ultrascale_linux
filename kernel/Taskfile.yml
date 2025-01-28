@@ -16,11 +16,11 @@ tasks:
      desc: "check and install host dependencies"
      internal: true
      cmds:
-       - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential
-       - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install libssl-dev
-       - dpkg -l flex >/dev/null && echo "continue" || sudo apt install flex
-       - dpkg -l bison >/dev/null && echo "continue" || sudo apt install bison
-       - dpkg -l bc >/dev/null && echo "continue" || sudo apt install bc
+       - dpkg -l build-essential >/dev/null && echo "continue" || sudo apt install build-essential -y
+       - dpkg -l libssl-dev >/dev/null && echo "continue" || sudo apt install libssl-dev-y
+       - dpkg -l flex >/dev/null && echo "continue" || sudo apt install flex -y
+       - dpkg -l bison >/dev/null && echo "continue" || sudo apt install bison -y
+       - dpkg -l bc >/dev/null && echo "continue" || sudo apt install bc -y
 
    create_kernel_folder:
      desc: "create kernel folder"
