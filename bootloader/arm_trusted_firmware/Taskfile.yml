@@ -9,6 +9,9 @@ vars:
    ATF_OUT_DIR: "{{.DIR_BOOTLOADER}}/atf/src"
    DIST_DIR: "dist"
    TOOLCHAIN_DIR: "{{.TOOLCHAIN_DIR}}"
+   NPROC:
+     sh:
+       echo $(nproc)
 
 tasks:
 
@@ -51,7 +54,7 @@ tasks:
      cmds:
        - |
          cd {{.ATF_OUT_DIR}} && \
-         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j8 CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
+         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j{{.NPROC}} CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence PLAT=zynqmp RESET_TO_BL31=1 distclean
 
    build_atf:
      desc: "build atf"
@@ -66,7 +69,7 @@ tasks:
        - task: atf_apply_patch
        - |
          cd {{.ATF_OUT_DIR}} && \
-         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1
+         PATH="{{.TOOLCHAIN_DIR}}/bin:{{.PATH}}" make -j{{.NPROC}} CROSS_COMPILE={{.CROSS_COMPILE}} ZYNQMP_CONSOLE=cadence bl31 PLAT=zynqmp RESET_TO_BL31=1 DEBUG=1
 
    clean_build_atf:
      desc: "clean build atf"

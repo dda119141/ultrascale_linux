@@ -121,6 +121,8 @@ tasks:
       qemu_img: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-img"
       qemu_nbd: "{{.USER_WORKING_DIR}}/generated/qemu/src/build/qemu-nbd"
     cmds:
+      - dpkg -l | grep kmod >/dev/null && echo "continue" || sudo apt install -y kmod
+      - dpkg -l | grep apt-utils >/dev/null && echo "continue" || sudo apt install -y apt-utils
       - sudo apt install -y nbd-client nbd-server
       - sudo modprobe nbd #Load the necessary kernel modules
       - sudo {{.qemu_img}} create {{.QEMU_GENERATED_OUT}}/{{.sd_drive_bin_name}} 2G
@@ -136,7 +138,7 @@ tasks:
     desc: "partition sd drive"
     cmds:
       - sudo sfdisk /dev/nbd0 < sd_card.layout
-        #      - sudo fdisk /dev/nbd0 # for manually partitionning
+        #      - sudo fdisk /dev/nbd0 # for manually partitioning
       - sudo mkfs.vfat /dev/nbd0p1
       - sudo mkfs.ext3 /dev/nbd0p2
 
