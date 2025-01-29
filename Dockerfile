@@ -40,11 +40,9 @@ COPY toolchain ./toolchain
 
 RUN apt update
 
-# Set the default command
-#CMD ["/bin/bash"]
 
 # Command to build qspi and sd card container images and start them via qemu
 #CMD ["/bin/bash", "-c", "/usr/local/bin/task basos"]
 
-#Command to list the available top level commands. This needs interaction with user
-CMD ["/bin/bash", "-c", "/usr/local/bin/task -l"]
+#Interactive command to list the available top level commands. "task -l"
+CMD ["/bin/bash"]

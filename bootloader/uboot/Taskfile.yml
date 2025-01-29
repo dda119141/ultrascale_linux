@@ -8,6 +8,9 @@ vars:
   DEVICE_TREE: "zynqmp-zcu102-rev1.0"
   UBOOT_OUT_DIR: "{{.DIR_BOOTLOADER}}/uboot/src"
   DIST_DIR: "dist"
+  NPROC:
+    sh:
+      echo $(nproc)
 
 tasks:
    get_host_dependencies:
@@ -59,10 +62,10 @@ tasks:
        - task: get_host_dependencies
        - |
          cd {{.UBOOT_OUT_DIR}} && \
-         DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
+         DEVICE_TREE="{{.DEVICE_TREE}}" make ARCH={{.ARCH}} -j{{.NPROC}} O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}} xilinx_zynqmp_virt_defconfig
        - |
          cd {{.UBOOT_OUT_DIR}} && \
-         DEVICE_TREE="{{.DEVICE_TREE}}" BL31={{.BL31}} make ARCH={{.ARCH}} -j8 O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
+         DEVICE_TREE="{{.DEVICE_TREE}}" BL31={{.BL31}} make ARCH={{.ARCH}} -j{{.NPROC}} O={{.DIST_DIR}} CROSS_COMPILE={{.LOC_CROSS_COMPILE}}
 
    clean_build_uboot:
      desc: "clean build linux uboot"
